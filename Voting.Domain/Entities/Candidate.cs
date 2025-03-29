@@ -2,14 +2,13 @@
 {
     public class Candidate(int id, string name)
     {
-        private int _voteCount = 0;
-        public int Id { get; private set; } = id;
-        public string Name { get; private set; } = name;
-        public int VoteCount => _voteCount;
+        public int Id { get; } = id;
+        public string Name { get; } = name;
+        public int VoteCount { get; private set; }
 
         public void IncrementVote()
         {
-            _voteCount++;
+            VoteCount++;
         }
     }
 }
