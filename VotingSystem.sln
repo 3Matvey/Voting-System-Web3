@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.35913.81 d17.13
+VisualStudioVersion = 17.13.35913.81
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Voting.API", "Voting.API\Voting.API.csproj", "{5B91E26B-6494-4132-B5B0-86705F64F7D5}"
 EndProject
@@ -9,7 +9,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Voting.Domain", "Voting.Dom
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Voting.Application", "Voting.Application\Voting.Application.csproj", "{7BAFFA1C-B150-4D32-9FEA-FEDF72EB87AB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Voting.Infrastructure", "Voting.Infrastructure\Voting.Infrastructure.csproj", "{03DF648F-DDAC-4712-A18D-C3CC0C10921A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Voting.Infrastructure.Blockchain", "Voting.Infrastructure\Voting.Infrastructure.Blockchain.csproj", "{03DF648F-DDAC-4712-A18D-C3CC0C10921A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Voting.Shared", "Voting.Shared\Voting.Shared.csproj", "{21951C0E-D900-4520-A530-5506BF039896}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Voting.Infrastructure.Data", "Voting.Infrastructure.Data\Voting.Infrastructure.Data.csproj", "{B36B6ACA-7085-4D06-A3F3-0A5BB1B5544A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +37,14 @@ Global
 		{03DF648F-DDAC-4712-A18D-C3CC0C10921A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{03DF648F-DDAC-4712-A18D-C3CC0C10921A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{03DF648F-DDAC-4712-A18D-C3CC0C10921A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{21951C0E-D900-4520-A530-5506BF039896}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{21951C0E-D900-4520-A530-5506BF039896}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{21951C0E-D900-4520-A530-5506BF039896}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{21951C0E-D900-4520-A530-5506BF039896}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B36B6ACA-7085-4D06-A3F3-0A5BB1B5544A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B36B6ACA-7085-4D06-A3F3-0A5BB1B5544A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B36B6ACA-7085-4D06-A3F3-0A5BB1B5544A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B36B6ACA-7085-4D06-A3F3-0A5BB1B5544A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

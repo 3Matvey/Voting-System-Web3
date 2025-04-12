@@ -5,10 +5,6 @@
         public int Id { get; } = id;
         public string Name { get; } = name;
         public int VoteCount { get; private set; }
-
-        public void IncrementVote()
-        {
-            VoteCount++;
-        }
+        public void IncrementVote() => VoteCount++;
     }
 }

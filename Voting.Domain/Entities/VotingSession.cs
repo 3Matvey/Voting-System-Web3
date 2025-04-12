@@ -20,51 +20,57 @@ namespace Voting.Domain.Entities
         /// <summary>Флаг активности голосования.</summary>
         public bool VotingActive { get; private set; } = false;
 
-        /// <summary>Последний присвоенный идентификатор кандидата.</summary>
-        public int CandidatesCount { get; private set; } = 0;
+        /// <summary>Счётчик добавленных кандидатов для генерации уникального идентификатора. </summary>
+        public int CandidatesAddedCount { get; private set; } = 0;
 
-        /// <summary>Фактическое число активных кандидатов.</summary>
-        public int ActiveCandidatesCount { get; private set; } = 0;
-
-        /// <summary>Список кандидатов сессии.</summary>
+        /// <summary>Список активных кандидатов.</summary>
         public List<Candidate> Candidates { get; } = [];
 
         /// <summary>Множество адресов, проголосовавших в сессии.</summary>
         public HashSet<string> HasVoted { get; } = [];
 
-        /// <summary>Добавляет кандидата в сессию.</summary>
-        /// <param name="name"> Имя кандидата.</param>
-        public void AddCandidate(string name)
+        /// <summary>
+        /// Проверяет, что голосование не активно, чтобы можно было менять кандидатов.
+        /// </summary>
+        private void EnsureVotingNotActive()
         {
             if (VotingActive)
-                throw new DomainException("Нельзя добавлять кандидатов во время активного голосования");
+                throw new DomainException("Нельзя изменять кандидатов во время активного голосования");
+        }
 
-            CandidatesCount++;
-            ActiveCandidatesCount++;
-            var candidate = new Candidate(CandidatesCount, name);
+        /// <summary>
+        /// Добавляет кандидата в сессию.
+        /// </summary>
+        /// <param name="name">Имя кандидата.</param>
+        public void AddCandidate(string name)
+        {
+            EnsureVotingNotActive();
+            CandidatesAddedCount++;
+            var candidate = new Candidate(CandidatesAddedCount, name);
             Candidates.Add(candidate);
         }
 
-        /// <summary>Удаляет кандидата из сессии по идентификатору.</summary>
+        /// <summary>
+        /// Удаляет кандидата по идентификатору.
+        /// </summary>
+        /// <param name="candidateId">Идентификатор кандидата.</param>
         public void RemoveCandidate(int candidateId)
         {
-            if (VotingActive)
-                throw new DomainException("Нельзя удалять кандидатов во время активного голосования");
-
+            EnsureVotingNotActive();
             var candidate = Candidates.FirstOrDefault(c => c.Id == candidateId)
                 ?? throw new DomainException("Кандидат не найден");
-
             Candidates.Remove(candidate);
-            ActiveCandidatesCount--;
         }
 
-        /// <summary>Запускает голосование с заданной длительностью (в минутах).</summary>
-        /// <param name="durationMinutes"> Длительность голосования (в минутах).</param>
+        /// <summary>
+        /// Запускает голосование на заданное время (в минутах).
+        /// </summary>
+        /// <param name="durationMinutes">Длительность голосования (в минутах).</param>
         public void StartVoting(int durationMinutes)
         {
             if (VotingActive)
                 throw new DomainException("Голосование уже активно");
-            if (ActiveCandidatesCount < 2)
+            if (Candidates.Count < 2)
                 throw new DomainException("Необходимо минимум два активных кандидата для начала голосования");
 
             StartTime = DateTime.UtcNow;
@@ -72,10 +78,11 @@ namespace Voting.Domain.Entities
             VotingActive = true;
         }
 
-        /// <summary>Регистрирует голос от пользователя за указанного кандидата.</summary>
-        /// <param name="candidateId"> Идентификатор кандидата. </param>
-        /// <param name="voterAddress"> Адрес голосующего. </param> 
-        public void Vote(string voterAddress, int candidateId)
+        /// <summary>
+        /// Вспомогательный метод для проверки условий голосования для конкретного избирателя.
+        /// </summary>
+        /// <param name="voterAddress">Адрес голосующего.</param>
+        private void ValidateVotingEligibility(string voterAddress)
         {
             if (!VotingActive)
                 throw new DomainException("Голосование не активно");
@@ -83,7 +90,16 @@ namespace Voting.Domain.Entities
                 throw new DomainException("Время голосования не активно");
             if (HasVoted.Contains(voterAddress))
                 throw new DomainException("Пользователь уже голосовал");
+        }
 
+        /// <summary>
+        /// Регистрирует голос за кандидата.
+        /// </summary>
+        /// <param name="voterAddress">Адрес голосующего.</param>
+        /// <param name="candidateId">Идентификатор кандидата.</param>
+        public void Vote(string voterAddress, int candidateId)
+        {
+            ValidateVotingEligibility(voterAddress);
             var candidate = Candidates.FirstOrDefault(c => c.Id == candidateId)
                 ?? throw new DomainException("Некорректный идентификатор кандидата");
 
@@ -91,7 +107,9 @@ namespace Voting.Domain.Entities
             candidate.IncrementVote();
         }
 
-        /// <summary>Завершает голосование.</summary>
+        /// <summary>
+        /// Завершает голосование.
+        /// </summary>
         public void EndVoting()
         {
             if (!VotingActive)
@@ -101,7 +119,9 @@ namespace Voting.Domain.Entities
             EndTime = DateTime.UtcNow;
         }
 
-        /// <summary>Возвращает общее количество голосов в сессии.</summary>
+        /// <summary>
+        /// Возвращает общее количество голосов в сессии.
+        /// </summary>
         public int GetTotalVotesCount() =>
             Candidates.Sum(c => c.VoteCount);
     }
