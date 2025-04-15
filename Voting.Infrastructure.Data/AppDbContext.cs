@@ -1,4 +1,4 @@
-﻿namespace Voting.Infrastructure.Data.Data
+﻿namespace Voting.Infrastructure.Data
 {
     internal class AppDbContext
     {

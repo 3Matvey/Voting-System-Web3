@@ -7,7 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Nethereum.JsonRpc.WebSocketClient" Version="4.29.0" />
     <PackageReference Include="Nethereum.Web3" Version="4.29.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Voting.Application\Voting.Application.csproj" />
   </ItemGroup>
 
 </Project>

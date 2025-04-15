@@ -1,12 +1,10 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
-using Nethereum.Hex.HexTypes;
+﻿using Nethereum.Hex.HexTypes;
 using Nethereum.RPC.Eth.DTOs;
 using Nethereum.Web3;
 using Voting.Application.Interfaces;
 using Voting.Domain.Entities;
 
-namespace Voting.Infrastructure.Blockchain.Blockchain
+namespace Voting.Infrastructure.Blockchain
 {
     /// <summary>
     /// Адаптер для взаимодействия со смарт-контрактом голосования через Nethereum.
