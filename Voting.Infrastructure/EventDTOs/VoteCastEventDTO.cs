@@ -4,7 +4,7 @@ using Nethereum.ABI.FunctionEncoding.Attributes;
 namespace Voting.Infrastructure.Blockchain.EventDTOs
 {
     [Event("VoteCast")]
-    public class VoteCastEventDTO : IEventDTO
+    internal class VoteCastEventDTO : IEventDTO
     {
         [Parameter("uint256", "sessionId", 1, false)]
         public BigInteger SessionId { get; set; }

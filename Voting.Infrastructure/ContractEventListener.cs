@@ -4,6 +4,7 @@ using Nethereum.Contracts;
 using Nethereum.RPC.Reactive.Eth.Subscriptions;
 using Nethereum.JsonRpc.WebSocketStreamingClient;
 using Voting.Infrastructure.Blockchain.EventDTOs;
+using Microsoft.Extensions.Logging;
 
 namespace Voting.Infrastructure.Blockchain
 {
@@ -16,7 +17,7 @@ namespace Voting.Infrastructure.Blockchain
     /// </remarks>
     /// <param name="wsUrl">URL WebSocket-ноды. </param>
     /// <param name="contractAddress">Адрес смарт-контракта.</param>
-    public class ContractEventListener(string wsUrl, string contractAddress) : IDisposable
+    public class ContractEventListener(string wsUrl, string contractAddress, ILogger<ContractEventListener>? logger = default) : IDisposable
     {
         private readonly StreamingWebSocketClient _streamingWebSocketClient = new(wsUrl);
 
@@ -39,6 +40,7 @@ namespace Voting.Infrastructure.Blockchain
         public async Task StartAsync()
         {
             await _streamingWebSocketClient.StartAsync();
+            logger?.LogInformation("WebSocket соединение запущено");
         }
 
         /// <summary>
@@ -59,88 +61,118 @@ namespace Voting.Infrastructure.Blockchain
                 disposable.Dispose();
             }
             _disposableSubscriptions.Clear();
-
             // Останавливаем само WebSocket-соединение
             await _streamingWebSocketClient.StopAsync();
+            logger?.LogInformation("WebSocket соединение остановлено");
         }
 
         /// <summary>
-        /// Универсальный метод для подписки на событие типа <typeparamref name="T"/>.
-        /// Пытается декодировать входящие логи как T и вызывать указанный обработчик.
+        /// Приватный универсальный метод подписки на событие конкретного DTO.
+        /// При успешном декодировании события вызывается переданный параметрless‑callback.
         /// </summary>
-        private async Task SubscribeToEventAsync<T>(Action<T> eventHandler)
+        /// <typeparam name="T">Тип DTO события (например, SessionCreatedEventDTO),
+        /// который должен реализовывать IEventDTO и иметь конструктор по умолчанию.</typeparam>
+        /// <param name="callback">Параметрless‑callback, вызываемый при получении события.</param>
+        private async Task SubscribeToEventInternal<T>(Action callback)
             where T : class, IEventDTO, new()
         {
-            // Создаём подписку на логи через StreamingWebSocketClient
             var subscription = new EthLogsObservableSubscription(_streamingWebSocketClient);
 
-            // Подписываемся на поток данных Rx
             var disposable = subscription.GetSubscriptionDataResponsesAsObservable()
                 .Subscribe(log =>
                 {
                     try
                     {
-                        // Пытаемся декодировать лог в нужное событие
                         var decoded = Event<T>.DecodeEvent(log);
                         if (decoded != null)
                         {
-                            eventHandler(decoded.Event);
+                            // Не передаем DTO, просто уведомляем об успешном получении события.
+                            callback();
                         }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Ошибка при декодировании события {typeof(T).Name}: {ex.Message}");
+                        logger?.LogError(ex, "Ошибка при декодировании события {EventName}", typeof(T).Name);
                     }
                 },
                 error =>
                 {
-                    Console.WriteLine($"Ошибка в подписке на событие {typeof(T).Name}: {error.Message}");
+                    logger?.LogError(error, "Ошибка в подписке на событие {EventName}", typeof(T).Name);
                 });
 
-            // Сохраняем подписку, чтобы потом вызвать UnsubscribeAsync()
             _subscriptions.Add(subscription);
-            // Сохраняем disposable-объект, чтобы потом вызвать Dispose()
             _disposableSubscriptions.Add(disposable);
 
-            // Фильтр логов по адресу контракта (не обрабатываем лишние события)
+            // Фильтруем только те логи, которые исходят от нужного контракта
             var filter = Event<T>.GetEventABI().CreateFilterInput(contractAddress);
-
-            // Запускаем подписку
             await subscription.SubscribeAsync(filter);
         }
 
-        #region Методы для подписки на конкретные события
+        #region Методы подписки на конкретные события
 
-        public Task SubscribeToSessionCreatedEvent(Action<SessionCreatedEventDTO> handler)
+        public event Action SessionCreatedEvent
         {
-            return SubscribeToEventAsync(handler);
+            add => SubscribeToEventInternal<SessionCreatedEventDTO>(value);
+            remove => throw new NotImplementedException();
+        }
+        async Task smth()
+        {
+            ContractEventListener a = new("s", "s");
+            a.SessionCreatedEvent += async () =>
+            await s();
+
+            async Task s()
+            {
+                await Task.Delay(1);
+            }
+        }
+        /// <summary>
+        /// Подписка на событие SessionCreated.
+        /// </summary>
+        public Task SubscribeToSessionCreatedEvent(Action callback)
+        {
+            return SubscribeToEventInternal<SessionCreatedEventDTO>(callback);
         }
 
-        public Task SubscribeToCandidateAddedEvent(Action<CandidateAddedEventDTO> handler)
+        /// <summary>
+        /// Подписка на событие CandidateAdded.
+        /// </summary>
+        public Task SubscribeToCandidateAddedEvent(Action callback)
         {
-            return SubscribeToEventAsync(handler);
+            return SubscribeToEventInternal<CandidateAddedEventDTO>(callback);
         }
 
-        public Task SubscribeToCandidateRemovedEvent(Action<CandidateRemovedEventDTO> handler)
+        /// <summary>
+        /// Подписка на событие CandidateRemoved.
+        /// </summary>
+        public Task SubscribeToCandidateRemovedEvent(Action callback)
         {
-            return SubscribeToEventAsync(handler);
+            return SubscribeToEventInternal<CandidateRemovedEventDTO>(callback);
         }
 
-        public Task SubscribeToVotingStartedEvent(Action<VotingStartedEventDTO> handler)
+        /// <summary>
+        /// Подписка на событие VotingStarted.
+        /// </summary>
+        public Task SubscribeToVotingStartedEvent(Action callback)
         {
-            return SubscribeToEventAsync(handler);
+            return SubscribeToEventInternal<VotingStartedEventDTO>(callback);
         }
 
-        public Task SubscribeToVotingEndedEvent(Action<VotingEndedEventDTO> handler)
+        /// <summary>
+        /// Подписка на событие VotingEnded.
+        /// </summary>
+        public Task SubscribeToVotingEndedEvent(Action callback)
         {
-            return SubscribeToEventAsync(handler);
+            return SubscribeToEventInternal<VotingEndedEventDTO>(callback);
         }
-
-        public Task SubscribeToVoteCastEvent(Action<VoteCastEventDTO> handler)
+        
+        /// <summary>
+        /// Подписка на событие VoteCast.
+        /// </summary>
+        public Task SubscribeToVoteCastEvent(Action callback)
         {
-            return SubscribeToEventAsync(handler);
+            return SubscribeToEventInternal<VoteCastEventDTO>(callback);
         }
-
         #endregion
 
         /// <summary>
