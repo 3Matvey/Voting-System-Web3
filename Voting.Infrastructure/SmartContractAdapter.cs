@@ -10,31 +10,18 @@ namespace Voting.Infrastructure.Blockchain
     /// Адаптер для взаимодействия со смарт-контрактом голосования через Nethereum.
     /// Реализует интерфейс ISmartContractAdapter.
     /// </summary>
-    public class SmartContractAdapter : ISmartContractAdapter
+    public class SmartContractAdapter(string rpcUrl, string contractAddress, string contractAbi, string defaultSenderAddress) : ISmartContractAdapter
     {
-        private readonly Web3 _web3;
-        private readonly string _contractAddress;
-        private readonly string _contractAbi;
-
-        // Адрес отправителя (или менеджер аккаунтов, если используете подписанные транзакции)
-        private readonly string _defaultSenderAddress;
-
-        public SmartContractAdapter(string rpcUrl, string contractAddress, string contractAbi, string defaultSenderAddress)
-        {
-            _web3 = new Web3(rpcUrl);
-            _contractAddress = contractAddress;
-            _contractAbi = contractAbi;
-            _defaultSenderAddress = defaultSenderAddress;
-        }
+        private readonly Web3 _web3 = new Web3(rpcUrl);
 
         public async Task<uint> CreateSessionAsync(string sessionAdmin)
         {
-            var contract = _web3.Eth.GetContract(_contractAbi, _contractAddress);
+            var contract = _web3.Eth.GetContract(contractAbi, contractAddress);
             var createSessionFunction = contract.GetFunction("createSession");
             // Отправляем транзакцию от _defaultSenderAddress (суперадмина) для создания сессии.
             var gas = new HexBigInteger(3000000);
             TransactionReceipt receipt = await createSessionFunction.SendTransactionAndWaitForReceiptAsync(
-                _defaultSenderAddress, gas, null, null, sessionAdmin);
+                defaultSenderAddress, gas, null, null, sessionAdmin);
 
             // Получение сессионного идентификатора (например, через событие или возвращаемое значение).
             // Здесь возвращается placeholder (0) – в реальной реализации следует извлечь sessionId.
@@ -43,38 +30,38 @@ namespace Voting.Infrastructure.Blockchain
 
         public async Task<string> AddCandidateAsync(uint sessionId, string candidateName)
         {
-            var contract = _web3.Eth.GetContract(_contractAbi, _contractAddress);
+            var contract = _web3.Eth.GetContract(contractAbi, contractAddress);
             var addCandidateFunction = contract.GetFunction("addCandidate");
             var gas = new HexBigInteger(3000000);
             // Предполагается, что вызов выполняется от адреса администратора сессии.
             TransactionReceipt receipt = await addCandidateFunction.SendTransactionAndWaitForReceiptAsync(
-                _defaultSenderAddress, gas, null, null, sessionId, candidateName);
+                defaultSenderAddress, gas, null, null, sessionId, candidateName);
             return receipt.TransactionHash;
         }
 
         public async Task<string> RemoveCandidateAsync(uint sessionId, uint candidateId)
         {
-            var contract = _web3.Eth.GetContract(_contractAbi, _contractAddress);
+            var contract = _web3.Eth.GetContract(contractAbi, contractAddress);
             var removeCandidateFunction = contract.GetFunction("removeCandidate");
             var gas = new HexBigInteger(3000000);
             TransactionReceipt receipt = await removeCandidateFunction.SendTransactionAndWaitForReceiptAsync(
-                _defaultSenderAddress, gas, null, null, sessionId, candidateId);
+                defaultSenderAddress, gas, null, null, sessionId, candidateId);
             return receipt.TransactionHash;
         }
 
         public async Task<string> StartVotingAsync(uint sessionId, uint durationMinutes)
         {
-            var contract = _web3.Eth.GetContract(_contractAbi, _contractAddress);
+            var contract = _web3.Eth.GetContract(contractAbi, contractAddress);
             var startVotingFunction = contract.GetFunction("startVoting");
             var gas = new HexBigInteger(3000000);
             TransactionReceipt receipt = await startVotingFunction.SendTransactionAndWaitForReceiptAsync(
-                _defaultSenderAddress, gas, null, null, sessionId, durationMinutes);
+                defaultSenderAddress, gas, null, null, sessionId, durationMinutes);
             return receipt.TransactionHash;
         }
 
         public async Task<string> VoteAsync(uint sessionId, uint candidateId, string voterAddress)
         {
-            var contract = _web3.Eth.GetContract(_contractAbi, _contractAddress);
+            var contract = _web3.Eth.GetContract(contractAbi, contractAddress);
             var voteFunction = contract.GetFunction("vote");
             var gas = new HexBigInteger(3000000);
             // Отправляем транзакцию от адреса голосующего.
@@ -85,17 +72,17 @@ namespace Voting.Infrastructure.Blockchain
 
         public async Task<string> EndVotingAsync(uint sessionId)
         {
-            var contract = _web3.Eth.GetContract(_contractAbi, _contractAddress);
+            var contract = _web3.Eth.GetContract(contractAbi, contractAddress);
             var endVotingFunction = contract.GetFunction("endVoting");
             var gas = new HexBigInteger(3000000);
             TransactionReceipt receipt = await endVotingFunction.SendTransactionAndWaitForReceiptAsync(
-                _defaultSenderAddress, gas, null, null, sessionId);
+                defaultSenderAddress, gas, null, null, sessionId);
             return receipt.TransactionHash;
         }
 
         public async Task<(bool isActive, uint timeLeft, uint totalVotesCount)> GetVotingStatusAsync(uint sessionId)
         {
-            var contract = _web3.Eth.GetContract(_contractAbi, _contractAddress);
+            var contract = _web3.Eth.GetContract(contractAbi, contractAddress);
             var getVotingStatusFunction = contract.GetFunction("getVotingStatus");
             // Вызов запроса (без отправки транзакции) для получения данных.
             var result = await getVotingStatusFunction.CallDeserializingToObjectAsync<VotingStatusDTO>(sessionId);
