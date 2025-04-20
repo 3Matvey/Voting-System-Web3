@@ -3,8 +3,9 @@ using Nethereum.JsonRpc.WebSocketStreamingClient;
 using Nethereum.RPC.Reactive.Eth.Subscriptions;
 using Nethereum.Contracts;
 using Voting.Infrastructure.Blockchain.EventDTOs;
-using Voting.Infrastructure.Blockchain.ContractEventArgs;
 using Nethereum.ABI.FunctionEncoding.Attributes;
+using Voting.Application.Events;
+using Voting.Application.Interfaces;
 
 namespace Voting.Infrastructure.Blockchain
 {
@@ -13,13 +14,14 @@ namespace Voting.Infrastructure.Blockchain
     /// Подписывается на все основные события и вызывает заданные обработчики.
     /// </summary>
     public class ContractEventListener(string wsUrl, string contractAddress, ILogger<ContractEventListener>? logger = null)
-        : IAsyncDisposable
+        : IContractEventListener
     {
         private readonly StreamingWebSocketClient _client = new(wsUrl);
-        private readonly string _contractAddress = contractAddress;
-        private readonly ILogger<ContractEventListener>? _logger = logger;
+
         private readonly List<EthLogsObservableSubscription> _subscriptions = new();
         private readonly List<IDisposable> _disposables = new();
+
+        private bool _started;
         private bool _disposed;
 
         public event EventHandler<SessionCreatedEventArgs>? SessionCreated;
@@ -31,13 +33,17 @@ namespace Voting.Infrastructure.Blockchain
 
         public async Task StartAsync()
         {
+            if (_started) return;
+            _started = true;
             await _client.StartAsync();
-            _logger?.LogInformation("WebSocket connection started to {Url}", wsUrl);
+            logger?.LogInformation("WebSocket connection started to {Url}", wsUrl);
             await InitializeSubscriptionsAsync();
         }
 
         public async Task StopAsync()
         {
+            _started = false;
+
             foreach (var sub in _subscriptions)
                 await sub.UnsubscribeAsync();
             _subscriptions.Clear();
@@ -47,57 +53,87 @@ namespace Voting.Infrastructure.Blockchain
             _disposables.Clear();
 
             await _client.StopAsync();
-            _logger?.LogInformation("WebSocket connection stopped");
+            logger?.LogInformation("WebSocket connection stopped");
         }
 
         private async Task InitializeSubscriptionsAsync()
         {
             await Subscribe<SessionCreatedEventDTO, SessionCreatedEventArgs>(
-                dto => new SessionCreatedEventArgs(dto),
-                (s, e) => SessionCreated?.Invoke(s, e));
+                dto => new SessionCreatedEventArgs(
+                    sessionId: checked((ulong)dto.SessionId),
+                    sessionAdmin: dto.SessionAdmin),
+                (s, e) => SessionCreated?.Invoke(s, e)
+            );
 
             await Subscribe<CandidateAddedEventDTO, CandidateAddedEventArgs>(
-                dto => new CandidateAddedEventArgs(dto),
-                (s, e) => CandidateAdded?.Invoke(s, e));
+                dto => new CandidateAddedEventArgs(
+                    sessionId: checked((ulong)dto.SessionId),
+                    candidateId: checked((ulong)dto.CandidateId),
+                    name: dto.Name),
+                (s, e) => CandidateAdded?.Invoke(s, e)
+            );
 
             await Subscribe<CandidateRemovedEventDTO, CandidateRemovedEventArgs>(
-                dto => new CandidateRemovedEventArgs(dto),
-                (s, e) => CandidateRemoved?.Invoke(s, e));
+                dto => new CandidateRemovedEventArgs(
+                    sessionId: checked((ulong)dto.SessionId),
+                    candidateId: checked((ulong)dto.CandidateId),
+                    name: dto.Name),
+                (s, e) => CandidateRemoved?.Invoke(s, e)
+            );
 
             await Subscribe<VotingStartedEventDTO, VotingStartedEventArgs>(
-                dto => new VotingStartedEventArgs(dto),
-                (s, e) => VotingStarted?.Invoke(s, e));
+                dto => new VotingStartedEventArgs(
+                    sessionId: checked((ulong)dto.SessionId),
+                    startTimeUtc: DateTimeOffset.FromUnixTimeSeconds((long)dto.StartTime).UtcDateTime,
+                    endTimeUtc: DateTimeOffset.FromUnixTimeSeconds((long)dto.EndTime).UtcDateTime),
+                (s, e) => VotingStarted?.Invoke(s, e)
+            );
 
             await Subscribe<VotingEndedEventDTO, VotingEndedEventArgs>(
-                dto => new VotingEndedEventArgs(dto),
-                (s, e) => VotingEnded?.Invoke(s, e));
+                dto => new VotingEndedEventArgs(
+                    sessionId: checked((ulong)dto.SessionId),
+                    endTimeUtc: DateTimeOffset.FromUnixTimeSeconds((long)dto.EndTime).UtcDateTime),
+                (s, e) => VotingEnded?.Invoke(s, e)
+            );
 
             await Subscribe<VoteCastEventDTO, VoteCastEventArgs>(
-                dto => new VoteCastEventArgs(dto),
-                (s, e) => VoteCast?.Invoke(s, e));
+                dto => new VoteCastEventArgs(
+                    sessionId: checked((ulong)dto.SessionId),
+                    voter: dto.Voter,
+                    candidateId: checked((ulong)dto.CandidateId)),
+                (s, e) => VoteCast?.Invoke(s, e)
+            );
         }
 
         private async Task Subscribe<TDto, TArgs>(Func<TDto, TArgs> map, Action<object, TArgs> raise)
             where TDto : class, IEventDTO, new()
             where TArgs : EventArgs
         {
-            var subscription = new EthLogsObservableSubscription(_client);
-            var disposable = subscription.GetSubscriptionDataResponsesAsObservable()
-                .Subscribe(log =>
+            var subscription = new EthLogsObservableSubscription(_client); // обёртка подписки на логи Ethereum через WebSocket
+            var disposable = subscription
+                .GetSubscriptionDataResponsesAsObservable() // получает IObservable<Log> — последовательность входящих лог‑сообщений
+                .Subscribe(log =>                           // подписывается на неё через Rx
                 {
-                    var decoded = Event<TDto>.DecodeEvent(log);
-                    if (decoded != null)
+                    try
                     {
-                        var args = map(decoded.Event);
+                        var decoded = Event<TDto>.DecodeEvent(log)?.Event;
+                        if (decoded is null) return;
+                        var args = map(decoded);
                         raise(this, args);
                     }
+                    catch (Exception ex)
+                    {
+                        logger?.LogError(ex, "Error handling {Event}", typeof(TDto).Name);
+                    }
                 },
-                error => _logger?.LogError(error, "Error in subscription for {Event}", typeof(TDto).Name));
+                err => logger?.LogError(err, "Subscription error for {Event}", typeof(TDto).Name));
 
             _subscriptions.Add(subscription);
             _disposables.Add(disposable);
 
-            var filter = Event<TDto>.GetEventABI().CreateFilterInput(_contractAddress);
+            var filter = Event<TDto>
+                .GetEventABI()
+                .CreateFilterInput(contractAddress);
             await subscription.SubscribeAsync(filter);
         }
 
