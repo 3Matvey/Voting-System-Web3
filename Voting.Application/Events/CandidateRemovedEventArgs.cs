@@ -3,10 +3,10 @@
     /// <summary>
     /// Аргументы события удаления кандидата.
     /// </summary>
-    public sealed class CandidateRemovedEventArgs(ulong sessionId, ulong candidateId, string name) : EventArgs
+    public sealed class CandidateRemovedEventArgs(uint sessionId, uint candidateId, string name) : EventArgs
     {
-        public ulong SessionId { get; } = sessionId;
-        public ulong CandidateId { get; } = candidateId;
+        public uint SessionId { get; } = sessionId;
+        public uint CandidateId { get; } = candidateId;
         public string Name { get; } = name;
     }
 }

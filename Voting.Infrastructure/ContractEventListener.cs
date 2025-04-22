@@ -58,30 +58,30 @@ namespace Voting.Infrastructure.Blockchain
         {
             await Subscribe<SessionCreatedEventDTO, SessionCreatedEventArgs>(
                 dto => new SessionCreatedEventArgs(
-                    sessionId: checked((ulong)dto.SessionId),
+                    sessionId: checked((uint)dto.SessionId),
                     sessionAdmin: dto.SessionAdmin),
                 (s, e) => SessionCreated?.Invoke(s, e)
             );
 
             await Subscribe<CandidateAddedEventDTO, CandidateAddedEventArgs>(
                 dto => new CandidateAddedEventArgs(
-                    sessionId: checked((ulong)dto.SessionId),
-                    candidateId: checked((ulong)dto.CandidateId),
+                    sessionId: checked((uint)dto.SessionId),
+                    candidateId: checked((uint)dto.CandidateId),
                     name: dto.Name),
                 (s, e) => CandidateAdded?.Invoke(s, e)
             );
 
             await Subscribe<CandidateRemovedEventDTO, CandidateRemovedEventArgs>(
                 dto => new CandidateRemovedEventArgs(
-                    sessionId: checked((ulong)dto.SessionId),
-                    candidateId: checked((ulong)dto.CandidateId),
+                    sessionId: checked((uint)dto.SessionId),
+                    candidateId: checked((uint)dto.CandidateId),
                     name: dto.Name),
                 (s, e) => CandidateRemoved?.Invoke(s, e)
             );
 
             await Subscribe<VotingStartedEventDTO, VotingStartedEventArgs>(
                 dto => new VotingStartedEventArgs(
-                    sessionId: checked((ulong)dto.SessionId),
+                    sessionId: checked((uint)dto.SessionId),
                     startTimeUtc: DateTimeOffset.FromUnixTimeSeconds((long)dto.StartTime).UtcDateTime,
                     endTimeUtc: DateTimeOffset.FromUnixTimeSeconds((long)dto.EndTime).UtcDateTime),
                 (s, e) => VotingStarted?.Invoke(s, e)
@@ -89,16 +89,16 @@ namespace Voting.Infrastructure.Blockchain
 
             await Subscribe<VotingEndedEventDTO, VotingEndedEventArgs>(
                 dto => new VotingEndedEventArgs(
-                    sessionId: checked((ulong)dto.SessionId),
+                    sessionId: checked((uint)dto.SessionId),
                     endTimeUtc: DateTimeOffset.FromUnixTimeSeconds((long)dto.EndTime).UtcDateTime),
                 (s, e) => VotingEnded?.Invoke(s, e)
             );
 
             await Subscribe<VoteCastEventDTO, VoteCastEventArgs>(
                 dto => new VoteCastEventArgs(
-                    sessionId: checked((ulong)dto.SessionId),
+                    sessionId: checked((uint)dto.SessionId),
                     voter: dto.Voter,
-                    candidateId: checked((ulong)dto.CandidateId)),
+                    candidateId: checked((uint)dto.CandidateId)),
                 (s, e) => VoteCast?.Invoke(s, e)
             );
         }

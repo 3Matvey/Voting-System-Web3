@@ -2,7 +2,7 @@
 {
     /// <summary>Результаты сессии голосования.</summary>
     public record VotingResultsDto(
-        Guid SessionId,
+        uint SessionId,
         List<CandidateResultDto> Candidates
     );
 }

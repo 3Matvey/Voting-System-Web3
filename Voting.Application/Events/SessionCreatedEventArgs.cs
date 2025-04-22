@@ -3,9 +3,9 @@
     /// <summary>
     /// Аргументы события создания сессии.
     /// </summary>
-    public sealed class SessionCreatedEventArgs(ulong sessionId, string sessionAdmin) : EventArgs
+    public sealed class SessionCreatedEventArgs(uint sessionId, string sessionAdmin) : EventArgs
     {
-        public ulong SessionId { get; } = sessionId;
+        public uint SessionId { get; } = sessionId;
         public string SessionAdmin { get; } = sessionAdmin;
     }
 }

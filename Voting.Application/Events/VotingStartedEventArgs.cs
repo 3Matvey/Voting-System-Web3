@@ -3,9 +3,9 @@
     /// <summary>
     /// Аргументы события старта голосования.
     /// </summary>
-    public sealed class VotingStartedEventArgs(ulong sessionId, DateTime startTimeUtc, DateTime endTimeUtc) : EventArgs
+    public sealed class VotingStartedEventArgs(uint sessionId, DateTime startTimeUtc, DateTime endTimeUtc) : EventArgs
     {
-        public ulong SessionId { get; } = sessionId;
+        public uint SessionId { get; } = sessionId;
         public DateTime StartTimeUtc { get; } = startTimeUtc;
         public DateTime EndTimeUtc { get; } = endTimeUtc;
     }

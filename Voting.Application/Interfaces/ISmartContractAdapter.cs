@@ -1,4 +1,4 @@
-﻿using Voting.Domain.Entities;
+﻿using Voting.Domain.Aggregates;
 
 namespace Voting.Application.Interfaces
 {
@@ -73,6 +73,7 @@ namespace Voting.Application.Interfaces
         /// <param name="sessionId">Идентификатор сессии голосования.</param>
         /// <returns>Список кандидатов с соответствующими голосами.</returns>
         Task<IEnumerable<Candidate>> GetCandidatesAsync(uint sessionId, CancellationToken ct = default);
+
         /// <summary>
         /// Получает кандидата по идентификатору сессии и кандидата.
         /// </summary>

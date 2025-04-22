@@ -1,19 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Nethereum.Contracts;
+﻿using Microsoft.Extensions.Logging;
 using Nethereum.Web3;
 using Nethereum.RPC.Eth.DTOs;
-using Voting.Application.Events;
 using Voting.Application.Interfaces;
-using Voting.Domain.Entities;
 using Voting.Infrastructure.Blockchain.ContractFunctions;
 using Voting.Infrastructure.Blockchain.EventDTOs;
 using Nethereum.Contracts.ContractHandlers;
+using Voting.Domain.Aggregates;
 
 namespace Voting.Infrastructure.Blockchain
 {
@@ -130,9 +122,9 @@ namespace Voting.Infrastructure.Blockchain
             // Собираем доменные объекты Candidate из трёх массивов:
             return dto.Ids
                 .Select((id, i) => new Candidate(
-                    (ulong)id,
+                    (uint)id,
                     dto.Names[i],
-                    (ulong)dto.VoteCounts[i]
+                    (uint)dto.VoteCounts[i]
                 ))
                 .ToList();
         }
@@ -150,15 +142,14 @@ namespace Voting.Infrastructure.Blockchain
                     GetCandidateFunction,
                     GetCandidateOutputDTO>(
                     fn,
-                    BlockParameter.CreateLatest(),
-                    cancellationToken: ct)
+                    BlockParameter.CreateLatest())
                 .ConfigureAwait(false);
 
             // Возвращаем единственного кандидата
             return new Candidate(
-                (ulong)candidateId,
+                candidateId,
                 dto.Name,
-                (ulong)dto.VoteCount
+                (uint)dto.VoteCount
             );
         }
     }

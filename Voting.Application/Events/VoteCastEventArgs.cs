@@ -3,11 +3,11 @@
     /// <summary>
     /// Аргументы события голосования за кандидата.
     /// </summary>
-    public sealed class VoteCastEventArgs(ulong sessionId, string voter, ulong candidateId) : EventArgs
+    public sealed class VoteCastEventArgs(uint sessionId, string voter, uint candidateId) : EventArgs
     {
-        public ulong SessionId { get; } = sessionId;
+        public uint SessionId { get; } = sessionId;
         public string Voter { get; } = voter;
-        public ulong CandidateId { get; } = candidateId;
+        public uint CandidateId { get; } = candidateId;
 
     }
 }
