@@ -7,6 +7,7 @@
         [Parameter("uint256", "candidateId", 2)] public BigInteger CandidateId { get; set; }
     }
 
+    [FunctionOutput]
     internal class GetCandidateOutputDTO : IFunctionOutputDTO
     {
         [Parameter("string", "name", 1)] public string Name { get; set; } = string.Empty;

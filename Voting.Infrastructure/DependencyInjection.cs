@@ -5,11 +5,12 @@ using Voting.Application.Interfaces;
 
 namespace Voting.Infrastructure.Blockchain
 {
-    public class BlockchainOptions
+    file class BlockchainOptions
     {
         public string RpcUrl { get; set; } = string.Empty;
         public string WsUrl { get; set; } = string.Empty;
         public string ContractAddress { get; set; } = string.Empty;
+        public string DefaultSenderAddress { get; set; } = string.Empty;
     }
 
     public static class DependencyInjection
@@ -26,18 +27,7 @@ namespace Voting.Infrastructure.Blockchain
             services.Configure<BlockchainOptions>(
                 configuration.GetSection("Blockchain"));
 
-            // 2) Адаптер работы с контрактом (RPC)
-            services.AddSingleton<ISmartContractAdapter>(sp =>
-            {
-                var opts = sp.GetRequiredService<IOptions<BlockchainOptions>>().Value;
-                var logger = sp.GetService<Microsoft.Extensions.Logging.ILogger<SmartContractAdapter>>();
-                return new SmartContractAdapter(
-                    rpcUrl: opts.RpcUrl,
-                    contractAddress: opts.ContractAddress,
-                    logger: logger);
-            });
-
-            // 3) Слушатель событий (WebSocket)
+            // 2) Слушатель событий (WebSocket) — он нужен адаптеру
             services.AddSingleton<IContractEventListener>(sp =>
             {
                 var opts = sp.GetRequiredService<IOptions<BlockchainOptions>>().Value;
@@ -45,7 +35,23 @@ namespace Voting.Infrastructure.Blockchain
                 return new ContractEventListener(
                     wsUrl: opts.WsUrl,
                     contractAddress: opts.ContractAddress,
-                    logger: logger);
+                    logger: logger
+                );
+            });
+
+            // 3) Адаптер работы с контрактом (RPC) — теперь зависит от IContractEventListener
+            services.AddSingleton<ISmartContractAdapter>(sp =>
+            {
+                var opts = sp.GetRequiredService<IOptions<BlockchainOptions>>().Value;
+                var listener = sp.GetRequiredService<IContractEventListener>();
+                var logger = sp.GetService<Microsoft.Extensions.Logging.ILogger<SmartContractAdapter>>();
+                return new SmartContractAdapter(
+                    rpcUrl: opts.RpcUrl,
+                    defaultSenderAddress: opts.DefaultSenderAddress,
+                    contractAddress: opts.ContractAddress,
+                    listener: listener,
+                    logger: logger
+                );
             });
 
             return services;

@@ -7,6 +7,7 @@
         public BigInteger SessionId { get; set; }
     }
 
+    [FunctionOutput]
     internal class VotingStatusOutputDTO : IFunctionOutputDTO
     {
         [Parameter("bool", "isActive", 1)] public bool IsActive { get; set; }

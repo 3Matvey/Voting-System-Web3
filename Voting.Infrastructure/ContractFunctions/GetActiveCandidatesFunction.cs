@@ -5,6 +5,8 @@
     {
         [Parameter("uint256", "sessionId", 1)] public BigInteger SessionId { get; set; }
     }
+
+    [FunctionOutput]
     internal class GetActiveCandidatesOutputDTO : IFunctionOutputDTO
     {
         [Parameter("uint256[]", "ids", 1)] public List<BigInteger> Ids { get; set; } = [];

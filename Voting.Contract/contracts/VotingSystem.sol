@@ -168,5 +168,29 @@ contract VotingSystem {
         Candidate storage candidate = session.candidates[candidateId];
         require(bytes(candidate.name).length != 0, "Candidate does not exist");
         return (candidate.name, candidate.voteCount);
-    } 
+    }
+    
+    /// @notice Возвращает сразу списком все активные кандидаты
+    /// @param sessionId Идентификатор сессии.
+    /// @return ids Идентификаторы кандидатов.
+    /// @return names Имена кандидатов.
+    /// @return voteCounts Количество голосов за каждого кандидата.
+    function getActiveCandidates(uint sessionId) external view returns (uint[] memory ids, string[] memory names, uint[] memory voteCounts)
+    {
+        uint count = sessions[sessionId].activeCandidatesCount;
+        ids         = new uint[](count);
+        names       = new string[](count);
+        voteCounts  = new uint[](count);
+
+        uint ptr;
+        for (uint i = 1; i <= sessions[sessionId].candidatesCount; i++) {
+            Candidate storage c = sessions[sessionId].candidates[i];
+            if (bytes(c.name).length == 0) 
+                continue;
+            ids[ptr]        = c.id;
+            names[ptr]      = c.name;
+            voteCounts[ptr] = c.voteCount;
+            ptr++;  
+        }
+    }  
 }

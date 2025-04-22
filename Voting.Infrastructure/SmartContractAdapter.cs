@@ -6,6 +6,7 @@ using Voting.Infrastructure.Blockchain.ContractFunctions;
 using Voting.Infrastructure.Blockchain.EventDTOs;
 using Nethereum.Contracts.ContractHandlers;
 using Voting.Domain.Aggregates;
+using Voting.Application.Events;
 
 namespace Voting.Infrastructure.Blockchain
 {
@@ -13,20 +14,45 @@ namespace Voting.Infrastructure.Blockchain
     {
         private readonly ContractHandler _handler;
         private readonly ILogger<SmartContractAdapter>? _logger;
+        private readonly string _defaultSenderAddress;
+        private readonly Dictionary<uint, string> _sessionAdmins = [];
+        private readonly IContractEventListener _listener;
 
         public SmartContractAdapter(
             string rpcUrl,
             string contractAddress,
+            string defaultSenderAddress,
+            IContractEventListener listener,
             ILogger<SmartContractAdapter>? logger = null)
         {
             var web3 = new Web3(rpcUrl);
             _handler = web3.Eth.GetContractHandler(contractAddress);
+            _defaultSenderAddress = defaultSenderAddress;
+            _listener = listener;
             _logger = logger;
+
+            _listener.SessionCreated += (_, e) =>
+            {
+                _sessionAdmins[e.SessionId] = e.SessionAdmin;
+                _logger?.LogDebug(
+                    "Mapped session {SessionId} → admin {Admin}",
+                    e.SessionId, e.SessionAdmin);
+            };
         }
 
+        private string GetSessionAdmin(uint sessionId)
+        {
+            if (!_sessionAdmins.TryGetValue(sessionId, out var admin))
+                throw new InvalidOperationException(
+                    $"Session {sessionId} has no known admin");
+            return admin;
+        }
         public async Task<uint> CreateSessionAsync(string sessionAdmin, CancellationToken ct = default)
         {
-            var fn = new CreateSessionFunction { SessionAdmin = sessionAdmin };
+            var fn = new CreateSessionFunction { 
+                SessionAdmin = sessionAdmin,
+                FromAddress = _defaultSenderAddress
+            };
             var receipt = await _handler
                 .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)
                 .ConfigureAwait(false);
@@ -43,7 +69,11 @@ namespace Voting.Infrastructure.Blockchain
 
         public async Task<string> AddCandidateAsync(uint sessionId, string candidateName, CancellationToken ct = default)
         {
-            var fn = new AddCandidateFunction { SessionId = sessionId, Name = candidateName };
+            var fn = new AddCandidateFunction { 
+                SessionId = sessionId, 
+                Name = candidateName,
+                FromAddress = GetSessionAdmin(sessionId)
+            };
             var receipt = await _handler
                 .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)
                 .ConfigureAwait(false);
@@ -52,7 +82,12 @@ namespace Voting.Infrastructure.Blockchain
 
         public async Task<string> RemoveCandidateAsync(uint sessionId, uint candidateId, CancellationToken ct = default)
         {
-            var fn = new RemoveCandidateFunction { SessionId = sessionId, CandidateId = candidateId };
+            var fn = new RemoveCandidateFunction 
+            { 
+                SessionId = sessionId,
+                CandidateId = candidateId,
+                FromAddress = GetSessionAdmin(sessionId)
+            };
             var receipt = await _handler
                 .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)
                 .ConfigureAwait(false);
@@ -61,7 +96,12 @@ namespace Voting.Infrastructure.Blockchain
 
         public async Task<string> StartVotingAsync(uint sessionId, uint durationMinutes, CancellationToken ct = default)
         {
-            var fn = new StartVotingFunction { SessionId = sessionId, DurationMinutes = durationMinutes };
+            var fn = new StartVotingFunction 
+            { 
+                SessionId = sessionId,
+                DurationMinutes = durationMinutes,
+                FromAddress = GetSessionAdmin(sessionId)
+            };
             var receipt = await _handler
                 .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)
                 .ConfigureAwait(false);
@@ -70,7 +110,12 @@ namespace Voting.Infrastructure.Blockchain
 
         public async Task<string> VoteAsync(uint sessionId, uint candidateId, string voterAddress, CancellationToken ct = default)
         {
-            var fn = new VoteFunction { SessionId = sessionId, CandidateId = candidateId, FromAddress = voterAddress };
+            var fn = new VoteFunction 
+            { 
+                SessionId = sessionId,
+                CandidateId = candidateId,
+                FromAddress = voterAddress 
+            };
             var receipt = await _handler
                 .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)
                 .ConfigureAwait(false);
@@ -79,7 +124,11 @@ namespace Voting.Infrastructure.Blockchain
 
         public async Task<string> EndVotingAsync(uint sessionId, CancellationToken ct = default)
         {
-            var fn = new EndVotingFunction { SessionId = sessionId };
+            var fn = new EndVotingFunction 
+            { 
+                SessionId = sessionId,
+                FromAddress = GetSessionAdmin(sessionId),
+            };
             var receipt = await _handler
                 .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)
                 .ConfigureAwait(false);
@@ -120,13 +169,12 @@ namespace Voting.Infrastructure.Blockchain
                 .ConfigureAwait(false);
 
             // Собираем доменные объекты Candidate из трёх массивов:
-            return dto.Ids
+            return [.. dto.Ids
                 .Select((id, i) => new Candidate(
                     (uint)id,
                     dto.Names[i],
                     (uint)dto.VoteCounts[i]
-                ))
-                .ToList();
+                ))];
         }
 
         /// <inheritdoc />
@@ -145,7 +193,6 @@ namespace Voting.Infrastructure.Blockchain
                     BlockParameter.CreateLatest())
                 .ConfigureAwait(false);
 
-            // Возвращаем единственного кандидата
             return new Candidate(
                 candidateId,
                 dto.Name,
