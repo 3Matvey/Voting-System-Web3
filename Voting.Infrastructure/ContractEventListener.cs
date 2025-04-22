@@ -1,9 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Nethereum.JsonRpc.WebSocketStreamingClient;
 using Nethereum.RPC.Reactive.Eth.Subscriptions;
-using Nethereum.Contracts;
 using Voting.Infrastructure.Blockchain.EventDTOs;
-using Nethereum.ABI.FunctionEncoding.Attributes;
 using Voting.Application.Events;
 using Voting.Application.Interfaces;
 
@@ -44,7 +42,7 @@ namespace Voting.Infrastructure.Blockchain
         {
             _started = false;
 
-            foreach (var sub in _subscriptions)
+            foreach (var sub in _subscriptions) 
                 await sub.UnsubscribeAsync();
             _subscriptions.Clear();
 
@@ -112,7 +110,7 @@ namespace Voting.Infrastructure.Blockchain
             var subscription = new EthLogsObservableSubscription(_client); // обёртка подписки на логи Ethereum через WebSocket
             var disposable = subscription
                 .GetSubscriptionDataResponsesAsObservable() // получает IObservable<Log> — последовательность входящих лог‑сообщений
-                .Subscribe(log =>                           // подписывается на неё через Rx
+                .Subscribe(log =>                           // подписывается на неё через Rx (подписка на каждый лог)
                 {
                     try
                     {
@@ -134,7 +132,8 @@ namespace Voting.Infrastructure.Blockchain
             var filter = Event<TDto>
                 .GetEventABI()
                 .CreateFilterInput(contractAddress);
-            await subscription.SubscribeAsync(filter);
+
+            await subscription.SubscribeAsync(filter);  // Запуск подписки: WebSocket становится «управляемым» слушателем
         }
 
         public async ValueTask DisposeAsync()

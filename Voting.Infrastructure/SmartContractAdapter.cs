@@ -1,111 +1,165 @@
-﻿using Nethereum.Hex.HexTypes;
-using Nethereum.RPC.Eth.DTOs;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Nethereum.Contracts;
 using Nethereum.Web3;
+using Nethereum.RPC.Eth.DTOs;
+using Voting.Application.Events;
 using Voting.Application.Interfaces;
 using Voting.Domain.Entities;
+using Voting.Infrastructure.Blockchain.ContractFunctions;
+using Voting.Infrastructure.Blockchain.EventDTOs;
+using Nethereum.Contracts.ContractHandlers;
 
 namespace Voting.Infrastructure.Blockchain
 {
-    /// <summary>
-    /// Адаптер для взаимодействия со смарт-контрактом голосования через Nethereum.
-    /// Реализует интерфейс ISmartContractAdapter.
-    /// </summary>
-    public class SmartContractAdapter(string rpcUrl, string contractAddress, string contractAbi, string defaultSenderAddress) : ISmartContractAdapter
+    public class SmartContractAdapter : ISmartContractAdapter
     {
-        private readonly Web3 _web3 = new Web3(rpcUrl);
+        private readonly ContractHandler _handler;
+        private readonly ILogger<SmartContractAdapter>? _logger;
 
-        public async Task<uint> CreateSessionAsync(string sessionAdmin)
+        public SmartContractAdapter(
+            string rpcUrl,
+            string contractAddress,
+            ILogger<SmartContractAdapter>? logger = null)
         {
-            var contract = _web3.Eth.GetContract(contractAbi, contractAddress);
-            var createSessionFunction = contract.GetFunction("createSession");
-            // Отправляем транзакцию от _defaultSenderAddress (суперадмина) для создания сессии.
-            var gas = new HexBigInteger(3000000);
-            TransactionReceipt receipt = await createSessionFunction.SendTransactionAndWaitForReceiptAsync(
-                defaultSenderAddress, gas, null, null, sessionAdmin);
-
-            // Получение сессионного идентификатора (например, через событие или возвращаемое значение).
-            // Здесь возвращается placeholder (0) – в реальной реализации следует извлечь sessionId.
-            return 0;
+            var web3 = new Web3(rpcUrl);
+            _handler = web3.Eth.GetContractHandler(contractAddress);
+            _logger = logger;
         }
 
-        public async Task<string> AddCandidateAsync(uint sessionId, string candidateName)
+        public async Task<uint> CreateSessionAsync(string sessionAdmin, CancellationToken ct = default)
         {
-            var contract = _web3.Eth.GetContract(contractAbi, contractAddress);
-            var addCandidateFunction = contract.GetFunction("addCandidate");
-            var gas = new HexBigInteger(3000000);
-            // Предполагается, что вызов выполняется от адреса администратора сессии.
-            TransactionReceipt receipt = await addCandidateFunction.SendTransactionAndWaitForReceiptAsync(
-                defaultSenderAddress, gas, null, null, sessionId, candidateName);
+            var fn = new CreateSessionFunction { SessionAdmin = sessionAdmin };
+            var receipt = await _handler
+                .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)
+                .ConfigureAwait(false);
+
+            // Парсим SessionCreated из receipt
+            var evtLog = receipt
+                .DecodeAllEvents<SessionCreatedEventDTO>()
+                .FirstOrDefault();
+            if (evtLog == null)
+                throw new InvalidOperationException("SessionCreated event not found");
+
+            return (uint)evtLog.Event.SessionId;
+        }
+
+        public async Task<string> AddCandidateAsync(uint sessionId, string candidateName, CancellationToken ct = default)
+        {
+            var fn = new AddCandidateFunction { SessionId = sessionId, Name = candidateName };
+            var receipt = await _handler
+                .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)
+                .ConfigureAwait(false);
             return receipt.TransactionHash;
         }
 
-        public async Task<string> RemoveCandidateAsync(uint sessionId, uint candidateId)
+        public async Task<string> RemoveCandidateAsync(uint sessionId, uint candidateId, CancellationToken ct = default)
         {
-            var contract = _web3.Eth.GetContract(contractAbi, contractAddress);
-            var removeCandidateFunction = contract.GetFunction("removeCandidate");
-            var gas = new HexBigInteger(3000000);
-            TransactionReceipt receipt = await removeCandidateFunction.SendTransactionAndWaitForReceiptAsync(
-                defaultSenderAddress, gas, null, null, sessionId, candidateId);
+            var fn = new RemoveCandidateFunction { SessionId = sessionId, CandidateId = candidateId };
+            var receipt = await _handler
+                .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)
+                .ConfigureAwait(false);
             return receipt.TransactionHash;
         }
 
-        public async Task<string> StartVotingAsync(uint sessionId, uint durationMinutes)
+        public async Task<string> StartVotingAsync(uint sessionId, uint durationMinutes, CancellationToken ct = default)
         {
-            var contract = _web3.Eth.GetContract(contractAbi, contractAddress);
-            var startVotingFunction = contract.GetFunction("startVoting");
-            var gas = new HexBigInteger(3000000);
-            TransactionReceipt receipt = await startVotingFunction.SendTransactionAndWaitForReceiptAsync(
-                defaultSenderAddress, gas, null, null, sessionId, durationMinutes);
+            var fn = new StartVotingFunction { SessionId = sessionId, DurationMinutes = durationMinutes };
+            var receipt = await _handler
+                .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)
+                .ConfigureAwait(false);
             return receipt.TransactionHash;
         }
 
-        public async Task<string> VoteAsync(uint sessionId, uint candidateId, string voterAddress)
+        public async Task<string> VoteAsync(uint sessionId, uint candidateId, string voterAddress, CancellationToken ct = default)
         {
-            var contract = _web3.Eth.GetContract(contractAbi, contractAddress);
-            var voteFunction = contract.GetFunction("vote");
-            var gas = new HexBigInteger(3000000);
-            // Отправляем транзакцию от адреса голосующего.
-            TransactionReceipt receipt = await voteFunction.SendTransactionAndWaitForReceiptAsync(
-                voterAddress, gas, null, null, sessionId, candidateId);
+            var fn = new VoteFunction { SessionId = sessionId, CandidateId = candidateId, FromAddress = voterAddress };
+            var receipt = await _handler
+                .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)
+                .ConfigureAwait(false);
             return receipt.TransactionHash;
         }
 
-        public async Task<string> EndVotingAsync(uint sessionId)
+        public async Task<string> EndVotingAsync(uint sessionId, CancellationToken ct = default)
         {
-            var contract = _web3.Eth.GetContract(contractAbi, contractAddress);
-            var endVotingFunction = contract.GetFunction("endVoting");
-            var gas = new HexBigInteger(3000000);
-            TransactionReceipt receipt = await endVotingFunction.SendTransactionAndWaitForReceiptAsync(
-                defaultSenderAddress, gas, null, null, sessionId);
+            var fn = new EndVotingFunction { SessionId = sessionId };
+            var receipt = await _handler
+                .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)
+                .ConfigureAwait(false);
             return receipt.TransactionHash;
         }
 
-        public async Task<(bool isActive, uint timeLeft, uint totalVotesCount)> GetVotingStatusAsync(uint sessionId)
+        public async Task<(bool isActive, uint timeLeft, uint totalVotesCount)> GetVotingStatusAsync(uint sessionId, CancellationToken ct = default)
         {
-            var contract = _web3.Eth.GetContract(contractAbi, contractAddress);
-            var getVotingStatusFunction = contract.GetFunction("getVotingStatus");
-            // Вызов запроса (без отправки транзакции) для получения данных.
-            var result = await getVotingStatusFunction.CallDeserializingToObjectAsync<VotingStatusDTO>(sessionId);
-            return (result.IsActive, result.TimeLeft, result.TotalVotesCount);
+            var fn = new GetVotingStatusFunction { SessionId = sessionId };
+
+            // Обратите внимание: здесь два generic-параметра —
+            // 1) тип FunctionMessage, 2) тип DTO для вывода
+            // И явно передаём BlockParameter (CreateLatest = по последнему блоку)
+            var dto = await _handler
+                .QueryDeserializingToObjectAsync<
+                    GetVotingStatusFunction,
+                    VotingStatusOutputDTO>(
+                    fn,
+                    BlockParameter.CreateLatest())
+                .ConfigureAwait(false);
+
+            return (
+                isActive: dto.IsActive,
+                timeLeft: (uint)dto.TimeLeft,
+                totalVotesCount: (uint)dto.TotalVotesCount
+            );
+        }
+        /// <inheritdoc />
+        public async Task<IEnumerable<Candidate>> GetCandidatesAsync(uint sessionId, CancellationToken ct = default)
+        {
+            var fn = new GetActiveCandidatesFunction { SessionId = sessionId };
+            var dto = await _handler
+                .QueryDeserializingToObjectAsync<
+                    GetActiveCandidatesFunction,
+                    GetActiveCandidatesOutputDTO>(
+                    fn,
+                    BlockParameter.CreateLatest())
+                .ConfigureAwait(false);
+
+            // Собираем доменные объекты Candidate из трёх массивов:
+            return dto.Ids
+                .Select((id, i) => new Candidate(
+                    (ulong)id,
+                    dto.Names[i],
+                    (ulong)dto.VoteCounts[i]
+                ))
+                .ToList();
         }
 
-        public async Task<IEnumerable<Candidate>> GetCandidatesAsync(uint sessionId)
+        /// <inheritdoc />
+        public async Task<Candidate> GetCandidateAsync(uint sessionId, uint candidateId, CancellationToken ct = default)
         {
-            // Если в контракте нет функции для получения списка кандидатов напрямую,
-            // можно реализовать получение списка через события или отдельный запрос.
-            // Здесь возвращается пустой список в качестве заглушки.
-            return new List<Candidate>();
-        }
-    }
+            var fn = new GetCandidateFunction
+            {
+                SessionId = sessionId,
+                CandidateId = candidateId
+            };
+            var dto = await _handler
+                .QueryDeserializingToObjectAsync<
+                    GetCandidateFunction,
+                    GetCandidateOutputDTO>(
+                    fn,
+                    BlockParameter.CreateLatest(),
+                    cancellationToken: ct)
+                .ConfigureAwait(false);
 
-    /// <summary>
-    /// DTO для десериализации статуса голосования, возвращаемого смарт-контрактом.
-    /// Именование полей должно соответствовать возвращаемым данным.
-    /// </summary>
-    public class VotingStatusDTO
-    {
-        public bool IsActive { get; set; }
-        public uint TimeLeft { get; set; }
-        public uint TotalVotesCount { get; set; }
+            // Возвращаем единственного кандидата
+            return new Candidate(
+                (ulong)candidateId,
+                dto.Name,
+                (ulong)dto.VoteCount
+            );
+        }
     }
 }
