@@ -8,12 +8,13 @@ using Voting.Domain.Exceptions;
 namespace Voting.Domain.Aggregates
 {
     /// <summary>
-    /// Агрегат-проекция состояния сессии голосования.
-    /// Состояние полностью восстанавливается через Apply-методы при поступлении событий контракта.
+    /// Агрегат–проекция состояния on-chain VotingSession.
+    /// Восстанавливается только через Apply-методы при поступлении событий.
     /// </summary>
     public class VotingSessionAggregate
     {
         public uint SessionId { get; private set; }
+        public RegistrationMode Mode { get; private set; }
         public string Admin { get; private set; } = string.Empty;
         public bool VotingActive { get; private set; }
         public DateTime? StartTimeUtc { get; private set; }
@@ -23,19 +24,17 @@ namespace Voting.Domain.Aggregates
         private readonly HashSet<string> _voters = new();
 
         /// <summary>
-        /// Пустой конструктор для восстановления из событий.
+        /// Пустой конструктор для event-sourcing’а.
         /// </summary>
         public VotingSessionAggregate() { }
 
         public void Apply(SessionCreatedDomainEvent e)
         {
-            if (SessionId == 0)
-                throw new DomainException(
-                    $"SessionId не должен быть равен 0");
-            if (SessionId != e.SessionId)
+            if (SessionId != 0 && SessionId != e.SessionId)
                 throw new DomainException(
                     $"Несоответствие SessionId: в памяти={SessionId}, в событии={e.SessionId}");
             SessionId = e.SessionId;
+            Mode = e.Mode;
             Admin = e.SessionAdmin;
         }
 
@@ -64,12 +63,16 @@ namespace Voting.Domain.Aggregates
 
         public void Apply(VoteCastDomainEvent e)
         {
-            if (_candidates.TryGetValue(e.CandidateId, out var c))
-                c.IncrementVote();
+            if (_candidates.TryGetValue(e.CandidateId, out var candidate))
+            {
+                candidate.IncrementVote();
+                _candidates[e.CandidateId] = candidate;
+            }
             _voters.Add(e.Voter);
         }
 
-        // Публичные методы чтения состояния (Getters) можно добавить по необходимости,
-        // например: IReadOnlyCollection<Candidate> GetCandidates(), bool HasVoted(address), и т.п.
+        // Дополнительные акссесоры:
+        public IReadOnlyCollection<Candidate> GetCandidates() => _candidates.Values;
+        public bool HasVoted(string voter) => _voters.Contains(voter);
     }
 }

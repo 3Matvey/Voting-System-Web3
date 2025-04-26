@@ -1,12 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Voting.Application.Interfaces
+﻿namespace Voting.Application.Interfaces
 {
-    internal class IUnitOfWork
+    public interface IUnitOfWork : IAsyncDisposable
     {
+        IVotingSessionRepository VotingSessionRepository { get; }
+        Task CommitAsync();
     }
 }

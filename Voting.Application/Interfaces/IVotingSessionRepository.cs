@@ -1,12 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Voting.Domain.Entities;
 
 namespace Voting.Application.Interfaces
 {
-    internal class IVotingSessionRepository
+    /// <summary>
+    /// Репозиторий для off-chain конфигурации сессии голосования.
+    /// </summary>
+    public interface IVotingSessionRepository : IAsyncDisposable
     {
+        /// <summary>
+        /// Сохранить базовую конфигурацию новой сессии 
+        /// (должно вызываться сразу после вызова createSession() on-chain).
+        /// </summary>
+        Task AddSessionConfigAsync(uint sessionId, RegistrationMode mode, string admin);
+
+        /// <summary>
+        /// Получить сохранённый режим регистрации для сессии.
+        /// </summary>
+        Task<RegistrationMode?> GetRegistrationModeAsync(uint sessionId);
     }
 }

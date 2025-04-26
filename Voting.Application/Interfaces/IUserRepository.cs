@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Voting.Application.Interfaces
 {
-    internal class IUserRepository
+    public interface IUserRepository
     {
     }
 }
