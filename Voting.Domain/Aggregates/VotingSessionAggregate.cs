@@ -1,26 +1,41 @@
-﻿using Voting.Domain.Events;
+﻿// Voting.Domain.Aggregates/VotingSessionAggregate.cs
+using System;
+using System.Collections.Generic;
+using Voting.Domain.Entities;
+using Voting.Domain.Events;
 using Voting.Domain.Exceptions;
 
 namespace Voting.Domain.Aggregates
 {
-    public class VotingSessionAggregate(uint sessionId)
+    /// <summary>
+    /// Агрегат-проекция состояния сессии голосования.
+    /// Состояние полностью восстанавливается через Apply-методы при поступлении событий контракта.
+    /// </summary>
+    public class VotingSessionAggregate
     {
-        public uint SessionId { get; } = sessionId;
+        public uint SessionId { get; private set; }
         public string Admin { get; private set; } = string.Empty;
         public bool VotingActive { get; private set; }
         public DateTime? StartTimeUtc { get; private set; }
         public DateTime? EndTimeUtc { get; private set; }
 
-        private readonly Dictionary<uint, Candidate> _candidates = [];
+        private readonly Dictionary<uint, Candidate> _candidates = new();
+        private readonly HashSet<string> _voters = new();
 
-        private readonly HashSet<string> _voters = [];
+        /// <summary>
+        /// Пустой конструктор для восстановления из событий.
+        /// </summary>
+        public VotingSessionAggregate() { }
 
         public void Apply(SessionCreatedDomainEvent e)
         {
-            // SessionId совпадает по конструктору
-            // здесь можно проверить e.SessionId == SessionId, либо довериться
+            if (SessionId == 0)
+                throw new DomainException(
+                    $"SessionId не должен быть равен 0");
             if (SessionId != e.SessionId)
-                throw new DomainException($"Несоответствие идентификаторов между моделью в памяти ({nameof(SessionId)} = {SessionId}) и onChain моделью({nameof(e.SessionId)} = {e.SessionId})");
+                throw new DomainException(
+                    $"Несоответствие SessionId: в памяти={SessionId}, в событии={e.SessionId}");
+            SessionId = e.SessionId;
             Admin = e.SessionAdmin;
         }
 
@@ -53,5 +68,8 @@ namespace Voting.Domain.Aggregates
                 c.IncrementVote();
             _voters.Add(e.Voter);
         }
+
+        // Публичные методы чтения состояния (Getters) можно добавить по необходимости,
+        // например: IReadOnlyCollection<Candidate> GetCandidates(), bool HasVoted(address), и т.п.
     }
 }

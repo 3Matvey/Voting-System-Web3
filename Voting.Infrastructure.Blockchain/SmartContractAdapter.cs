@@ -5,8 +5,7 @@ using Voting.Application.Interfaces;
 using Voting.Infrastructure.Blockchain.ContractFunctions;
 using Voting.Infrastructure.Blockchain.EventDTOs;
 using Nethereum.Contracts.ContractHandlers;
-using Voting.Domain.Aggregates;
-using Voting.Application.Events;
+using Voting.Domain.Entities;
 
 namespace Voting.Infrastructure.Blockchain
 {
@@ -57,14 +56,12 @@ namespace Voting.Infrastructure.Blockchain
                 .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)
                 .ConfigureAwait(false);
 
-            // Парсим SessionCreated из receipt
+            // SessionCreated из receipt
             var evtLog = receipt
                 .DecodeAllEvents<SessionCreatedEventDTO>()
                 .FirstOrDefault();
-            if (evtLog == null)
-                throw new InvalidOperationException("SessionCreated event not found");
-
-            return (uint)evtLog.Event.SessionId;
+            return evtLog != null ? (uint)evtLog.Event.SessionId
+                : throw new InvalidOperationException("SessionCreated event not found");
         }
 
         public async Task<string> AddCandidateAsync(uint sessionId, string candidateName, CancellationToken ct = default)
@@ -108,13 +105,13 @@ namespace Voting.Infrastructure.Blockchain
             return receipt.TransactionHash;
         }
 
-        public async Task<string> VoteAsync(uint sessionId, uint candidateId, string voterAddress, CancellationToken ct = default)
+        public async Task<string> VoteAsync(uint sessionId, uint candidateId, User user, CancellationToken ct = default)
         {
             var fn = new VoteFunction 
             { 
                 SessionId = sessionId,
                 CandidateId = candidateId,
-                FromAddress = voterAddress 
+                FromAddress = user.BlockchainAddress, 
             };
             var receipt = await _handler
                 .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)
@@ -139,9 +136,6 @@ namespace Voting.Infrastructure.Blockchain
         {
             var fn = new GetVotingStatusFunction { SessionId = sessionId };
 
-            // Обратите внимание: здесь два generic-параметра —
-            // 1) тип FunctionMessage, 2) тип DTO для вывода
-            // И явно передаём BlockParameter (CreateLatest = по последнему блоку)
             var dto = await _handler
                 .QueryDeserializingToObjectAsync<
                     GetVotingStatusFunction,
@@ -156,7 +150,6 @@ namespace Voting.Infrastructure.Blockchain
                 totalVotesCount: (uint)dto.TotalVotesCount
             );
         }
-        /// <inheritdoc />
         public async Task<IEnumerable<Candidate>> GetCandidatesAsync(uint sessionId, CancellationToken ct = default)
         {
             var fn = new GetActiveCandidatesFunction { SessionId = sessionId };
@@ -168,7 +161,6 @@ namespace Voting.Infrastructure.Blockchain
                     BlockParameter.CreateLatest())
                 .ConfigureAwait(false);
 
-            // Собираем доменные объекты Candidate из трёх массивов:
             return [.. dto.Ids
                 .Select((id, i) => new Candidate(
                     (uint)id,
@@ -177,7 +169,6 @@ namespace Voting.Infrastructure.Blockchain
                 ))];
         }
 
-        /// <inheritdoc />
         public async Task<Candidate> GetCandidateAsync(uint sessionId, uint candidateId, CancellationToken ct = default)
         {
             var fn = new GetCandidateFunction

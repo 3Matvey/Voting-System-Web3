@@ -1,4 +1,4 @@
-﻿using Voting.Domain.Aggregates;
+﻿using Voting.Domain.Entities;
 
 namespace Voting.Application.Interfaces
 {
@@ -46,7 +46,7 @@ namespace Voting.Application.Interfaces
         /// <param name="candidateId">Идентификатор кандидата.</param>
         /// <param name="voterAddress">Адрес голосующего.</param>
         /// <returns>Идентификатор транзакции или результат операции.</returns>
-        Task<string> VoteAsync(uint sessionId, uint candidateId, string voterAddress, CancellationToken ct = default);
+        Task<string> VoteAsync(uint sessionId, uint candidateId, User user, CancellationToken ct = default);
 
         /// <summary>
         /// Завершает голосование в сессии.

@@ -1,10 +1,11 @@
-﻿namespace Voting.Domain.Aggregates
+﻿namespace Voting.Domain.Entities
 {
     public sealed class Candidate(uint id, string name, uint voteCount)
     {
         public uint Id { get; } = id;
-        public string Name { get; } = name;
+        public string Name { get; set; } = name;
         public uint VoteCount { get; private set; } = voteCount;
-        internal void IncrementVote() => VoteCount++;
+
+        public uint IncrementVote() => VoteCount++;
     }
 }

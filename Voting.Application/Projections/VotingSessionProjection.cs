@@ -50,7 +50,7 @@ namespace Voting.Application.Projections
 
         private VotingSessionAggregate GetOrCreate(uint sessionId)
         {
-            return _sessions.GetOrAdd(sessionId, id => new VotingSessionAggregate(id));
+            return _sessions.GetOrAdd(sessionId, id => new VotingSessionAggregate(id)); //тут пока ошибка компиляции
         }
 
         private void OnSessionCreated(object? sender, SessionCreatedEventArgs e)
