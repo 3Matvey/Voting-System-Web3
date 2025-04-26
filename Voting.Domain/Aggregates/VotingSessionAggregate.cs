@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using Voting.Domain.Entities;
+using Voting.Domain.Entities.ValueObjects;
 using Voting.Domain.Events;
 using Voting.Domain.Exceptions;
 
@@ -15,17 +16,14 @@ namespace Voting.Domain.Aggregates
     {
         public uint SessionId { get; private set; }
         public RegistrationMode Mode { get; private set; }
-        public string Admin { get; private set; } = string.Empty;
+        public Guid AdminUserId { get; private set; }
         public bool VotingActive { get; private set; }
         public DateTime? StartTimeUtc { get; private set; }
         public DateTime? EndTimeUtc { get; private set; }
 
         private readonly Dictionary<uint, Candidate> _candidates = new();
-        private readonly HashSet<string> _voters = new();
+        private readonly HashSet<Guid> _votedUserIds = new();
 
-        /// <summary>
-        /// Пустой конструктор для event-sourcing’а.
-        /// </summary>
         public VotingSessionAggregate() { }
 
         public void Apply(SessionCreatedDomainEvent e)
@@ -35,18 +33,14 @@ namespace Voting.Domain.Aggregates
                     $"Несоответствие SessionId: в памяти={SessionId}, в событии={e.SessionId}");
             SessionId = e.SessionId;
             Mode = e.Mode;
-            Admin = e.SessionAdmin;
+            AdminUserId = e.AdminUserId;
         }
 
         public void Apply(CandidateAddedDomainEvent e)
-        {
-            _candidates[e.CandidateId] = new Candidate(e.CandidateId, e.Name, 0);
-        }
+            => _candidates[e.CandidateId] = new Candidate(e.CandidateId, e.Name, 0);
 
         public void Apply(CandidateRemovedDomainEvent e)
-        {
-            _candidates.Remove(e.CandidateId);
-        }
+            => _candidates.Remove(e.CandidateId);
 
         public void Apply(VotingStartedDomainEvent e)
         {
@@ -68,11 +62,23 @@ namespace Voting.Domain.Aggregates
                 candidate.IncrementVote();
                 _candidates[e.CandidateId] = candidate;
             }
-            _voters.Add(e.Voter);
+            _votedUserIds.Add(e.VoterId);
         }
 
-        // Дополнительные акссесоры:
+        public void UpdateCandidateDescription(uint candidateId, string newDescription)
+        {
+            if (SessionId == 0)
+                throw new DomainException("Session not initialized");
+            if (!_candidates.TryGetValue(candidateId, out var candidate))
+                throw new DomainException($"Candidate {candidateId} not found");
+            if (VotingActive)
+                throw new DomainException("Нельзя менять описание во время активного голосования");
+
+            candidate.UpdateDescription(newDescription);
+            _candidates[candidateId] = candidate;
+        }
+
         public IReadOnlyCollection<Candidate> GetCandidates() => _candidates.Values;
-        public bool HasVoted(string voter) => _voters.Contains(voter);
+        public bool HasVoted(Guid userId) => _votedUserIds.Contains(userId);
     }
 }

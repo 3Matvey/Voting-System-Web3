@@ -1,6 +1,6 @@
-﻿using Voting.Domain.Entities;
+﻿using Voting.Domain.Entities.ValueObjects;
 
-namespace Voting.Application.Interfaces
+namespace Voting.Domain.Interfaces.Repositories
 {
     /// <summary>
     /// Репозиторий для off-chain конфигурации сессии голосования.

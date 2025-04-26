@@ -1,6 +1,6 @@
 ﻿namespace Voting.Domain.Events
 {
-    public record VoterRegisteredDomainEvent(
+    public sealed record VoterRegisteredDomainEvent(
         uint SessionId,
         Guid UserId,
         string Address

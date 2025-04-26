@@ -1,4 +1,6 @@
-﻿namespace Voting.Domain.Entities
+﻿using Voting.Domain.Entities.ValueObjects;
+
+namespace Voting.Domain.Entities
 {
     public record User(
         Guid Id, 

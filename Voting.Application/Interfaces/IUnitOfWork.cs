@@ -1,4 +1,6 @@
-﻿namespace Voting.Application.Interfaces
+﻿using Voting.Domain.Interfaces.Repositories;
+
+namespace Voting.Application.Interfaces
 {
     public interface IUnitOfWork : IAsyncDisposable
     {

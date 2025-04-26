@@ -1,4 +1,4 @@
-﻿namespace Voting.Domain.Entities
+﻿namespace Voting.Domain.Entities.ValueObjects
 {
     /// <summary>
     /// Режим регистрации участников голосования:

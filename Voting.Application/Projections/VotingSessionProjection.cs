@@ -1,42 +1,55 @@
-﻿// Voting.Application.Projections/VotingSessionProjection.cs
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using Microsoft.Extensions.Hosting;
 using Voting.Application.Interfaces;
 using Voting.Application.Events;
 using Voting.Domain.Aggregates;
 using Voting.Domain.Events;
+using Voting.Domain.Interfaces.Repositories;
+using Voting.Domain.Exceptions;
 
 namespace Voting.Application.Projections
 {
     /// <summary>
-    /// HostedService, слушает события контракта и обновляет in-memory агрегаты.
+    /// HostedService, слушает on-chain события и обновляет in-memory агрегаты.
     /// </summary>
-    public class VotingSessionProjection(IContractEventListener listener, IVotingSessionRepository sessionRepo)
-        : IHostedService
+    public class VotingSessionProjection : IHostedService
     {
+        private readonly IContractEventListener _listener;
+        private readonly IVotingSessionRepository _sessionRepo;
+        private readonly IUserRepository _userRepo;
         private readonly ConcurrentDictionary<uint, VotingSessionAggregate> _sessions
             = new();
 
+        public VotingSessionProjection(
+            IContractEventListener listener,
+            IVotingSessionRepository sessionRepo,
+            IUserRepository userRepo)
+        {
+            _listener = listener ?? throw new ArgumentNullException(nameof(listener));
+            _sessionRepo = sessionRepo ?? throw new ArgumentNullException(nameof(sessionRepo));
+            _userRepo = userRepo ?? throw new ArgumentNullException(nameof(userRepo));
+        }
+
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            listener.SessionCreated += OnSessionCreated;
-            listener.CandidateAdded += OnCandidateAdded;
-            listener.CandidateRemoved += OnCandidateRemoved;
-            listener.VotingStarted += OnVotingStarted;
-            listener.VotingEnded += OnVotingEnded;
-            listener.VoteCast += OnVoteCast;
-            return listener.StartAsync();
+            _listener.SessionCreated += OnSessionCreated;
+            _listener.CandidateAdded += OnCandidateAdded;
+            _listener.CandidateRemoved += OnCandidateRemoved;
+            _listener.VotingStarted += OnVotingStarted;
+            _listener.VotingEnded += OnVotingEnded;
+            _listener.VoteCast += OnVoteCast;
+            return _listener.StartAsync();
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
-            await listener.StopAsync();
-            listener.SessionCreated -= OnSessionCreated;
-            listener.CandidateAdded -= OnCandidateAdded;
-            listener.CandidateRemoved -= OnCandidateRemoved;
-            listener.VotingStarted -= OnVotingStarted;
-            listener.VotingEnded -= OnVotingEnded;
-            listener.VoteCast -= OnVoteCast;
+            await _listener.StopAsync();
+            _listener.SessionCreated -= OnSessionCreated;
+            _listener.CandidateAdded -= OnCandidateAdded;
+            _listener.CandidateRemoved -= OnCandidateRemoved;
+            _listener.VotingStarted -= OnVotingStarted;
+            _listener.VotingEnded -= OnVotingEnded;
+            _listener.VoteCast -= OnVoteCast;
         }
 
         private VotingSessionAggregate GetOrCreate(uint sessionId)
@@ -44,44 +57,59 @@ namespace Voting.Application.Projections
 
         private void OnSessionCreated(object? _, SessionCreatedEventArgs e)
         {
-            // достаём mode, который мы уже записали в репозиторий
-            var mode = sessionRepo
+            // off-chain конфиг — режим
+            var mode = _sessionRepo
                 .GetRegistrationModeAsync(e.SessionId)
-                .GetAwaiter().GetResult()    // в проекциях можно синхронно
-                ?? throw new InvalidOperationException(
-                     $"Mode для sessionId={e.SessionId} не найден");
+                .GetAwaiter().GetResult()
+                ?? throw new InvalidOperationException($"Mode для sessionId={e.SessionId} не найден");
+
+            // маппинг on-chain address → userId
+            var admin = _userRepo
+                .GetByBlockchainAddressAsync(e.SessionAdmin)
+                .GetAwaiter().GetResult()
+                ?? throw new DomainException($"Unknown admin address: {e.SessionAdmin}");
 
             var domEvt = new SessionCreatedDomainEvent(
                 e.SessionId,
-                e.SessionAdmin,
+                admin.Id,
                 mode
             );
-
             GetOrCreate(e.SessionId).Apply(domEvt);
         }
-        private void OnCandidateAdded(object? s, CandidateAddedEventArgs e)
+
+        private void OnCandidateAdded(object? _, CandidateAddedEventArgs e)
             => GetOrCreate(e.SessionId)
                .Apply(new CandidateAddedDomainEvent(e.SessionId, e.CandidateId, e.Name));
 
-        private void OnCandidateRemoved(object? s, CandidateRemovedEventArgs e)
+        private void OnCandidateRemoved(object? _, CandidateRemovedEventArgs e)
             => GetOrCreate(e.SessionId)
                .Apply(new CandidateRemovedDomainEvent(e.SessionId, e.CandidateId));
 
-        private void OnVotingStarted(object? s, VotingStartedEventArgs e)
+        private void OnVotingStarted(object? _, VotingStartedEventArgs e)
             => GetOrCreate(e.SessionId)
                .Apply(new VotingStartedDomainEvent(e.SessionId, e.StartTimeUtc, e.EndTimeUtc));
 
-        private void OnVotingEnded(object? s, VotingEndedEventArgs e)
+        private void OnVotingEnded(object? _, VotingEndedEventArgs e)
             => GetOrCreate(e.SessionId)
                .Apply(new VotingEndedDomainEvent(e.SessionId, e.EndTimeUtc));
 
-        private void OnVoteCast(object? s, VoteCastEventArgs e)
-            => GetOrCreate(e.SessionId)
-               .Apply(new VoteCastDomainEvent(e.SessionId, e.Voter, e.CandidateId));
+        private void OnVoteCast(object? _, VoteCastEventArgs e)
+        {
+            // маппинг адрес → Guid
+            var user = _userRepo
+                .GetByBlockchainAddressAsync(e.Voter)
+                .GetAwaiter().GetResult()
+                ?? throw new DomainException($"Unknown voter address: {e.Voter}");
 
-        /// <summary>
-        /// Доступ к агрегату из других компонентов.
-        /// </summary>
+            var domEvt = new VoteCastDomainEvent(
+                e.SessionId,
+                user.Id,
+                e.CandidateId
+            );
+            GetOrCreate(e.SessionId).Apply(domEvt);
+        }
+
+        /// <summary> Чтение агрегата из других компонентов. </summary>
         public VotingSessionAggregate? GetAggregate(uint sessionId)
             => _sessions.TryGetValue(sessionId, out var agg) ? agg : null;
     }

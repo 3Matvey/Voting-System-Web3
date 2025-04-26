@@ -1,4 +1,4 @@
-﻿namespace Voting.Domain.Entities
+﻿namespace Voting.Domain.Entities.ValueObjects
 {
     public enum Role
     {
