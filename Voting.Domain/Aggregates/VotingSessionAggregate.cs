@@ -1,39 +1,38 @@
-﻿// Voting.Domain.Aggregates/VotingSessionAggregate.cs
-using System;
-using System.Collections.Generic;
+﻿using Voting.Domain.Common;
 using Voting.Domain.Entities;
-using Voting.Domain.Entities.ValueObjects;
 using Voting.Domain.Events;
 using Voting.Domain.Exceptions;
+using Voting.Domain.Entities.ValueObjects;
 
 namespace Voting.Domain.Aggregates
 {
-    /// <summary>
-    /// Агрегат–проекция состояния on-chain VotingSession.
-    /// Восстанавливается только через Apply-методы при поступлении событий.
-    /// </summary>
-    public class VotingSessionAggregate
+    public sealed class VotingSessionAggregate : AggregateRoot<uint>
     {
-        public uint SessionId { get; private set; }
+        public override uint Id { get; private protected set; }
         public RegistrationMode Mode { get; private set; }
         public Guid AdminUserId { get; private set; }
+        public VerificationLevel RequiredVerificationLevel { get; private set; }
         public bool VotingActive { get; private set; }
         public DateTime? StartTimeUtc { get; private set; }
         public DateTime? EndTimeUtc { get; private set; }
 
-        private readonly Dictionary<uint, Candidate> _candidates = new();
-        private readonly HashSet<Guid> _votedUserIds = new();
+        private readonly Dictionary<uint, Candidate> _candidates = [];
+        private readonly HashSet<Guid> _votedUserIds = [];
 
         public VotingSessionAggregate() { }
 
+        public IReadOnlyCollection<Candidate> GetCandidates() => _candidates.Values;
+        public bool HasVoted(Guid userId) => _votedUserIds.Contains(userId);
+
+        #region ON-CHAIN 
         public void Apply(SessionCreatedDomainEvent e)
         {
-            if (SessionId != 0 && SessionId != e.SessionId)
-                throw new DomainException(
-                    $"Несоответствие SessionId: в памяти={SessionId}, в событии={e.SessionId}");
-            SessionId = e.SessionId;
+            if (Id != 0 && Id != e.SessionId)
+                throw new DomainException($"SessionId mismatch: in-memory={Id}, event={e.SessionId}");
+            Id = e.SessionId;
             Mode = e.Mode;
             AdminUserId = e.AdminUserId;
+            RequiredVerificationLevel = e.RequiredVerificationLevel;
         }
 
         public void Apply(CandidateAddedDomainEvent e)
@@ -64,21 +63,51 @@ namespace Voting.Domain.Aggregates
             }
             _votedUserIds.Add(e.VoterId);
         }
+        #endregion
 
+        // OFF-CHAIN команда — регистрируем юзера на сессию
+        public void RegisterVoter(User voter)
+        {
+            if (Id == 0)
+                throw new DomainException("Session not initialized");
+
+            if (voter.VerificationLevel < RequiredVerificationLevel)
+                throw new DomainException(
+                    $"User {voter.Id} has insufficient verification: " +
+                    $"{voter.VerificationLevel}, required: {RequiredVerificationLevel}");
+
+            if (_votedUserIds.Contains(voter.Id))
+                throw new DomainException($"User {voter.Id} is already registered or has voted");
+
+            // аккумулируем событие регистрации
+            var @event = new VoterRegisteredDomainEvent(Id, voter.Id, voter.BlockchainAddress);
+            AddDomainEvent(@event);
+            Apply(@event);
+        }
+
+        public void Apply(VoterRegisteredDomainEvent e)
+        {
+            _votedUserIds.Add(e.UserId);
+        }
+
+        // Команда на изменение описания (как до этого)
         public void UpdateCandidateDescription(uint candidateId, string newDescription)
         {
-            if (SessionId == 0)
+            if (Id == 0)
                 throw new DomainException("Session not initialized");
             if (!_candidates.TryGetValue(candidateId, out var candidate))
                 throw new DomainException($"Candidate {candidateId} not found");
             if (VotingActive)
-                throw new DomainException("Нельзя менять описание во время активного голосования");
+                throw new DomainException("Cannot update description during active voting");
 
             candidate.UpdateDescription(newDescription);
             _candidates[candidateId] = candidate;
-        }
 
-        public IReadOnlyCollection<Candidate> GetCandidates() => _candidates.Values;
-        public bool HasVoted(Guid userId) => _votedUserIds.Contains(userId);
+            AddDomainEvent(new CandidateDescriptionUpdatedDomainEvent(
+                Id,
+                candidateId,
+                newDescription
+            ));
+        }
     }
 }

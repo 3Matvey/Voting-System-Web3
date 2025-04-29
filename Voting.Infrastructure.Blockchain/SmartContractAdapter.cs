@@ -6,6 +6,7 @@ using Voting.Infrastructure.Blockchain.ContractFunctions;
 using Voting.Infrastructure.Blockchain.EventDTOs;
 using Nethereum.Contracts.ContractHandlers;
 using Voting.Domain.Entities;
+using Voting.Domain.Aggregates;
 
 namespace Voting.Infrastructure.Blockchain
 {

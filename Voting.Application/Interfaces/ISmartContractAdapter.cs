@@ -1,4 +1,5 @@
-﻿using Voting.Domain.Entities;
+﻿using Voting.Domain.Aggregates;
+using Voting.Domain.Entities;
 
 namespace Voting.Application.Interfaces
 {

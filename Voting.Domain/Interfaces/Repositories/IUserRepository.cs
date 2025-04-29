@@ -1,12 +1,10 @@
-﻿using Voting.Domain.Entities;
+﻿using Voting.Domain.Aggregates;
 
 namespace Voting.Domain.Interfaces.Repositories
 {
-    public interface IUserRepository
+    public interface IUserRepository : IRepository<User, Guid>
     {
-        Task<User?> GetByIdAsync(Guid userId);
         Task<User?> GetByUsernameAsync(string username);
         Task<User?> GetByBlockchainAddressAsync(string address);
-        Task AddAsync(User user);
     }
 }
