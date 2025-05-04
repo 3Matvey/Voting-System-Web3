@@ -1,0 +1,1 @@
+﻿global using Voting.Shared.ResultPattern;

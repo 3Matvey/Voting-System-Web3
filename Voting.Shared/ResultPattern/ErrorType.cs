@@ -9,6 +9,6 @@ public enum ErrorType
     NotFound = 1,
     Validation = 2,
     Conflict = 3,
-    AccessUnAuthorized = 4,
+    AccessUnauthorized = 4,
     AccessForbidden = 5,
 }

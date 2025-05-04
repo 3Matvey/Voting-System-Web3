@@ -80,7 +80,7 @@ public class Error
     /// <param name="description">The error description.</param>
     /// <returns>A new instance of <see cref="Error"/>.</returns>
     public static Error AccessUnAuthorized(string code, string description) =>
-        new(code, description, ErrorType.AccessUnAuthorized);
+        new(code, description, ErrorType.AccessUnauthorized);
 
     /// <summary>
     /// Creates a new instance of <see cref="Error"/> with the specified code and description, representing an access forbidden error.

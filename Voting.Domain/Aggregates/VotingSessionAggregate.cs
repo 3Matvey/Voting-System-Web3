@@ -10,14 +10,15 @@ namespace Voting.Domain.Aggregates
     {
         public override uint Id { get; private protected set; }
         public RegistrationMode Mode { get; private set; }
-        public Guid AdminUserId { get; private set; }
         public VerificationLevel RequiredVerificationLevel { get; private set; }
+        public Guid AdminUserId { get; private set; }
         public bool VotingActive { get; private set; }
         public DateTime? StartTimeUtc { get; private set; }
         public DateTime? EndTimeUtc { get; private set; }
 
         private readonly Dictionary<uint, Candidate> _candidates = [];
         private readonly HashSet<Guid> _votedUserIds = [];
+
 
         public VotingSessionAggregate() { }
 
@@ -102,6 +103,7 @@ namespace Voting.Domain.Aggregates
 
             candidate.UpdateDescription(newDescription);
             _candidates[candidateId] = candidate;
+
 
             AddDomainEvent(new CandidateDescriptionUpdatedDomainEvent(
                 Id,

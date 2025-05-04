@@ -1,11 +1,11 @@
 ﻿using System.Collections.Concurrent;
 using Microsoft.Extensions.Hosting;
-using Voting.Application.Interfaces;
-using Voting.Application.Events;
 using Voting.Domain.Aggregates;
 using Voting.Domain.Events;
-using Voting.Domain.Interfaces.Repositories;
 using Voting.Domain.Exceptions;
+using Voting.Domain.Interfaces.Repositories;
+using Voting.Application.Events;
+using Voting.Application.Interfaces;
 
 namespace Voting.Application.Projections
 {
@@ -55,26 +55,22 @@ namespace Voting.Application.Projections
         private VotingSessionAggregate GetOrCreate(uint sessionId)
             => _sessions.GetOrAdd(sessionId, _ => new VotingSessionAggregate());
 
-        private void OnSessionCreated(object? _, SessionCreatedEventArgs e)
+        private async void OnSessionCreated(object? _, SessionCreatedEventArgs e)
         {
-            // off-chain конфиг — режим
-            var mode = _sessionRepo
-                .GetRegistrationModeAsync(e.SessionId)
-                .GetAwaiter().GetResult()
-                ?? throw new InvalidOperationException($"Mode для sessionId={e.SessionId} не найден");
+            // уже сохранённый агрегат с полным off-chain состоянием
+            var persisted = await _sessionRepo
+                .GetByIdAsync(e.SessionId)
+                .ConfigureAwait(false) ?? throw new DomainException($"Session {e.SessionId} not found in repository");
 
-            // маппинг on-chain address → userId
-            var admin = _userRepo
-                .GetByBlockchainAddressAsync(e.SessionAdmin)
-                .GetAwaiter().GetResult()
-                ?? throw new DomainException($"Unknown admin address: {e.SessionAdmin}");
-
-            var domEvt = new SessionCreatedDomainEvent(
-                e.SessionId,
-                admin.Id,
-                mode
-            );
-            GetOrCreate(e.SessionId).Apply(domEvt);
+            // применяем on-chain факт к in-memory проекции
+            // (id в persisted уже равен e.SessionId, но Apply просто гарантирует consistency)
+            GetOrCreate(e.SessionId)
+                .Apply(new SessionCreatedDomainEvent(
+                    e.SessionId,
+                    persisted.AdminUserId,
+                    persisted.Mode,
+                    persisted.RequiredVerificationLevel
+                ));
         }
 
         private void OnCandidateAdded(object? _, CandidateAddedEventArgs e)
@@ -93,12 +89,11 @@ namespace Voting.Application.Projections
             => GetOrCreate(e.SessionId)
                .Apply(new VotingEndedDomainEvent(e.SessionId, e.EndTimeUtc));
 
-        private void OnVoteCast(object? _, VoteCastEventArgs e)
+        private async void OnVoteCast(object? _, VoteCastEventArgs e)
         {
-            // маппинг адрес → Guid
-            var user = _userRepo
+            var user = await _userRepo
                 .GetByBlockchainAddressAsync(e.Voter)
-                .GetAwaiter().GetResult()
+                .ConfigureAwait(false)
                 ?? throw new DomainException($"Unknown voter address: {e.Voter}");
 
             var domEvt = new VoteCastDomainEvent(
@@ -106,6 +101,7 @@ namespace Voting.Application.Projections
                 user.Id,
                 e.CandidateId
             );
+
             GetOrCreate(e.SessionId).Apply(domEvt);
         }
 

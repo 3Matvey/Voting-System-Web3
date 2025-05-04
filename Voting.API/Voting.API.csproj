@@ -14,4 +14,9 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="8.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Voting.Application\Voting.Application.csproj" />
+    <ProjectReference Include="..\Voting.Shared\Voting.Shared.csproj" />
+  </ItemGroup>
+
 </Project>

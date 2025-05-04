@@ -5,7 +5,7 @@ namespace Voting.Domain.Events
 {
     public sealed record SessionCreatedDomainEvent(
         uint SessionId,
-        Guid AdminUserId,
+        Guid AdminUserId, 
         RegistrationMode Mode,
         VerificationLevel RequiredVerificationLevel
     ) : IDomainEvent;

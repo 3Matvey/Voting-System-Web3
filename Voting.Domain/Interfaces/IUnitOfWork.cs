@@ -4,8 +4,8 @@ namespace Voting.Domain.Interfaces
 {
     public interface IUnitOfWork : IAsyncDisposable
     {
-        IUserRepository UserRepository { get; }
-        IVotingSessionRepository VotingSessionRepository { get; }
+        IUserRepository Users { get; }
+        IVotingSessionRepository VotingSessions { get; }
         Task CommitAsync();
     }
 }

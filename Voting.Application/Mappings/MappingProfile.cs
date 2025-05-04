@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
-using Voting.Application.DTOs;
+using Voting.Application.DTOs.Requests;
+using Voting.Application.DTOs.Responses;
 using Voting.Domain.Aggregates;
 
 namespace Voting.Application.Mappings
@@ -9,6 +10,7 @@ namespace Voting.Application.Mappings
     {
         public MappingProfile()
         {
+            CreateMap<VotingSessionAggregate, CreateVotingSessionResponse>();
             //    // Маппинг кандидата в DTO результатов кандидата
             //    CreateMap<Candidate, CandidateResultDto>()
             //        .ForMember(dest => dest.CandidateId, opt => opt.MapFrom(src => src.Id))
