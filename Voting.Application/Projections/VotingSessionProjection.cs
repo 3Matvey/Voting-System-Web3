@@ -2,110 +2,167 @@
 using Microsoft.Extensions.Hosting;
 using Voting.Domain.Aggregates;
 using Voting.Domain.Events;
+using Voting.Domain.Interfaces;
+using Voting.Application.Interfaces;
+using Voting.Application.Events;
 using Voting.Domain.Exceptions;
 using Voting.Domain.Interfaces.Repositories;
-using Voting.Application.Events;
-using Voting.Application.Interfaces;
 
 namespace Voting.Application.Projections
 {
-    /// <summary>
-    /// HostedService, слушает on-chain события и обновляет in-memory агрегаты.
-    /// </summary>
     public class VotingSessionProjection : IHostedService
     {
         private readonly IContractEventListener _listener;
-        private readonly IVotingSessionRepository _sessionRepo;
-        private readonly IUserRepository _userRepo;
-        private readonly ConcurrentDictionary<uint, VotingSessionAggregate> _sessions
-            = new();
+        private readonly IUnitOfWork _uow;
+        private readonly IDomainEventPublisher _publisher;
+
+        private readonly ConcurrentDictionary<uint, VotingSessionAggregate> _sessions = [];
+
+        // делегаты для контрактных событий
+        private readonly EventHandler<SessionCreatedEventArgs> _onChainSessionCreated;
+        private readonly EventHandler<CandidateAddedEventArgs> _onChainCandidateAdded;
+        private readonly EventHandler<CandidateRemovedEventArgs> _onChainCandidateRemoved;
+        private readonly EventHandler<VotingStartedEventArgs> _onChainVotingStarted;
+        private readonly EventHandler<VotingEndedEventArgs> _onChainVotingEnded;
+        private readonly EventHandler<VoteCastEventArgs> _onChainVoteCast;
 
         public VotingSessionProjection(
             IContractEventListener listener,
-            IVotingSessionRepository sessionRepo,
-            IUserRepository userRepo)
+            IUnitOfWork uow,
+            IDomainEventPublisher publisher)
         {
             _listener = listener ?? throw new ArgumentNullException(nameof(listener));
-            _sessionRepo = sessionRepo ?? throw new ArgumentNullException(nameof(sessionRepo));
-            _userRepo = userRepo ?? throw new ArgumentNullException(nameof(userRepo));
+            _uow = uow ?? throw new ArgumentNullException(nameof(uow));
+            _publisher = publisher ?? throw new ArgumentNullException(nameof(publisher));
+
+            // on-chain → domain events
+            _onChainSessionCreated = (_, e) => _publisher.Publish(new SessionCreatedDomainEvent(
+                                            e.SessionId,
+                                            Guid.Empty,
+                                            default,
+                                            default));
+            _onChainCandidateAdded = (_, e) => _publisher.Publish(new CandidateAddedDomainEvent(
+                                            e.SessionId, e.CandidateId, e.Name));
+            _onChainCandidateRemoved = (_, e) => _publisher.Publish(new CandidateRemovedDomainEvent(
+                                            e.SessionId, e.CandidateId));
+            _onChainVotingStarted = (_, e) => _publisher.Publish(new VotingStartedDomainEvent(
+                                            e.SessionId, e.StartTimeUtc, e.EndTimeUtc));
+            _onChainVotingEnded = (_, e) => _publisher.Publish(new VotingEndedDomainEvent(
+                                            e.SessionId, e.EndTimeUtc));
+            _onChainVoteCast = async (_, e) =>
+            {
+                var user = await _uow.Users
+                    .GetByBlockchainAddressAsync(e.Voter)
+                    .ConfigureAwait(false)
+                    ?? throw new DomainException($"Unknown voter address: {e.Voter}");
+
+                _publisher.Publish(new VoteCastDomainEvent(
+                    e.SessionId,
+                    user.Id,
+                    e.CandidateId
+                ));
+            };
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _listener.SessionCreated += OnSessionCreated;
-            _listener.CandidateAdded += OnCandidateAdded;
-            _listener.CandidateRemoved += OnCandidateRemoved;
-            _listener.VotingStarted += OnVotingStarted;
-            _listener.VotingEnded += OnVotingEnded;
-            _listener.VoteCast += OnVoteCast;
+            // подписываемся на контракта события
+            _listener.SessionCreated += _onChainSessionCreated;
+            _listener.CandidateAdded += _onChainCandidateAdded;
+            _listener.CandidateRemoved += _onChainCandidateRemoved;
+            _listener.VotingStarted += _onChainVotingStarted;
+            _listener.VotingEnded += _onChainVotingEnded;
+            _listener.VoteCast += _onChainVoteCast;
+
+            // подписываемся на доменные события
+            _publisher.Subscribe<SessionCreatedDomainEvent>(On);
+            _publisher.Subscribe<CandidateAddedDomainEvent>(On);
+            _publisher.Subscribe<CandidateRemovedDomainEvent>(On);
+            _publisher.Subscribe<VotingStartedDomainEvent>(On);
+            _publisher.Subscribe<VotingEndedDomainEvent>(On);
+            _publisher.Subscribe<VoteCastDomainEvent>(On);
+            _publisher.Subscribe<VoterRegisteredDomainEvent>(On);
+            _publisher.Subscribe<CandidateDescriptionUpdatedDomainEvent>(On);
+
             return _listener.StartAsync();
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
             await _listener.StopAsync();
-            _listener.SessionCreated -= OnSessionCreated;
-            _listener.CandidateAdded -= OnCandidateAdded;
-            _listener.CandidateRemoved -= OnCandidateRemoved;
-            _listener.VotingStarted -= OnVotingStarted;
-            _listener.VotingEnded -= OnVotingEnded;
-            _listener.VoteCast -= OnVoteCast;
+
+            // отписываемся от контрактных
+            _listener.SessionCreated -= _onChainSessionCreated;
+            _listener.CandidateAdded -= _onChainCandidateAdded;
+            _listener.CandidateRemoved -= _onChainCandidateRemoved;
+            _listener.VotingStarted -= _onChainVotingStarted;
+            _listener.VotingEnded -= _onChainVotingEnded;
+            _listener.VoteCast -= _onChainVoteCast;
         }
 
         private VotingSessionAggregate GetOrCreate(uint sessionId)
             => _sessions.GetOrAdd(sessionId, _ => new VotingSessionAggregate());
 
-        private async void OnSessionCreated(object? _, SessionCreatedEventArgs e)
+        // общий метод-обработчик всех доменных событий
+        private async void On(SessionCreatedDomainEvent e)
         {
-            // уже сохранённый агрегат с полным off-chain состоянием
-            var persisted = await _sessionRepo
-                .GetByIdAsync(e.SessionId)
-                .ConfigureAwait(false) ?? throw new DomainException($"Session {e.SessionId} not found in repository");
-
-            // применяем on-chain факт к in-memory проекции
-            // (id в persisted уже равен e.SessionId, но Apply просто гарантирует consistency)
-            GetOrCreate(e.SessionId)
-                .Apply(new SessionCreatedDomainEvent(
-                    e.SessionId,
-                    persisted.AdminUserId,
-                    persisted.Mode,
-                    persisted.RequiredVerificationLevel
-                ));
+            var agg = GetOrCreate(e.SessionId).Apply(e);
+            await UpsertAsync(agg);
         }
 
-        private void OnCandidateAdded(object? _, CandidateAddedEventArgs e)
-            => GetOrCreate(e.SessionId)
-               .Apply(new CandidateAddedDomainEvent(e.SessionId, e.CandidateId, e.Name));
-
-        private void OnCandidateRemoved(object? _, CandidateRemovedEventArgs e)
-            => GetOrCreate(e.SessionId)
-               .Apply(new CandidateRemovedDomainEvent(e.SessionId, e.CandidateId));
-
-        private void OnVotingStarted(object? _, VotingStartedEventArgs e)
-            => GetOrCreate(e.SessionId)
-               .Apply(new VotingStartedDomainEvent(e.SessionId, e.StartTimeUtc, e.EndTimeUtc));
-
-        private void OnVotingEnded(object? _, VotingEndedEventArgs e)
-            => GetOrCreate(e.SessionId)
-               .Apply(new VotingEndedDomainEvent(e.SessionId, e.EndTimeUtc));
-
-        private async void OnVoteCast(object? _, VoteCastEventArgs e)
+        private async void On(CandidateAddedDomainEvent e)
         {
-            var user = await _userRepo
-                .GetByBlockchainAddressAsync(e.Voter)
-                .ConfigureAwait(false)
-                ?? throw new DomainException($"Unknown voter address: {e.Voter}");
-
-            var domEvt = new VoteCastDomainEvent(
-                e.SessionId,
-                user.Id,
-                e.CandidateId
-            );
-
-            GetOrCreate(e.SessionId).Apply(domEvt);
+            var agg = GetOrCreate(e.SessionId).Apply(e);
+            await UpsertAsync(agg);
         }
 
-        /// <summary> Чтение агрегата из других компонентов. </summary>
+        private async void On(CandidateRemovedDomainEvent e)
+        {
+            var agg = GetOrCreate(e.SessionId).Apply(e);
+            await UpsertAsync(agg);
+        }
+
+        private async void On(VotingStartedDomainEvent e)
+        {
+            var agg = GetOrCreate(e.SessionId).Apply(e);
+            await UpsertAsync(agg);
+        }
+
+        private async void On(VotingEndedDomainEvent e)
+        {
+            var agg = GetOrCreate(e.SessionId).Apply(e);
+            await UpsertAsync(agg);
+        }
+
+        private async void On(VoteCastDomainEvent e)
+        {
+            var agg = GetOrCreate(e.SessionId).Apply(e);
+            await UpsertAsync(agg);
+        }
+
+        private async void On(VoterRegisteredDomainEvent e)
+        {
+            var agg = GetOrCreate(e.SessionId).Apply(e);
+            await UpsertAsync(agg);
+        }
+
+        private async void On(CandidateDescriptionUpdatedDomainEvent e)
+        {
+            var agg = GetOrCreate(e.SessionId).Apply(e);
+            await UpsertAsync(agg);
+        }
+
+        private async Task UpsertAsync(VotingSessionAggregate agg)
+        {
+            var existing = await _uow.VotingSessions.GetByIdAsync(agg.Id).ConfigureAwait(false);
+            if (existing == null)
+                await _uow.VotingSessions.AddAsync(agg).ConfigureAwait(false);
+            else
+                await _uow.VotingSessions.UpdateAsync(agg).ConfigureAwait(false);
+
+            await _uow.CommitAsync().ConfigureAwait(false);
+        }
+
         public VotingSessionAggregate? GetAggregate(uint sessionId)
             => _sessions.TryGetValue(sessionId, out var agg) ? agg : null;
     }

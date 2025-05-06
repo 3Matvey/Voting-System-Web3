@@ -6,9 +6,9 @@ using Voting.Domain.Events;
 namespace Voting.Domain.Aggregates
 {
     public sealed class User(Guid id, string email, string blockchainAddress, Role role) 
-        : AggregateRoot<Guid>
+        : AggregateRoot
     {
-        public override Guid Id { get; private protected set; } = id;
+        public Guid Id { get; private set; } = id;
         [EmailAddress]
         public string Email { get; private set; } = email ?? throw new ArgumentNullException(nameof(email));
         public string BlockchainAddress { get; private set; } = blockchainAddress ?? throw new ArgumentNullException(nameof(blockchainAddress));

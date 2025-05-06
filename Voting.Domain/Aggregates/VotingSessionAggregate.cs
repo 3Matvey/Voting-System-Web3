@@ -6,9 +6,9 @@ using Voting.Domain.Entities.ValueObjects;
 
 namespace Voting.Domain.Aggregates
 {
-    public sealed class VotingSessionAggregate : AggregateRoot<uint>
+    public sealed class VotingSessionAggregate : AggregateRoot
     {
-        public override uint Id { get; private protected set; }
+        public uint Id { get; private set; }
         public RegistrationMode Mode { get; private set; }
         public VerificationLevel RequiredVerificationLevel { get; private set; }
         public Guid AdminUserId { get; private set; }
@@ -19,43 +19,59 @@ namespace Voting.Domain.Aggregates
         private readonly Dictionary<uint, Candidate> _candidates = [];
         private readonly HashSet<Guid> _votedUserIds = [];
 
-
         public VotingSessionAggregate() { }
 
         public IReadOnlyCollection<Candidate> GetCandidates() => _candidates.Values;
         public bool HasVoted(Guid userId) => _votedUserIds.Contains(userId);
 
-        #region ON-CHAIN 
-        public void Apply(SessionCreatedDomainEvent e)
+        #region Apply
+        public VotingSessionAggregate Apply(SessionCreatedDomainEvent e)
         {
-            if (Id != 0 && Id != e.SessionId)
-                throw new DomainException($"SessionId mismatch: in-memory={Id}, event={e.SessionId}");
-            Id = e.SessionId;
-            Mode = e.Mode;
-            AdminUserId = e.AdminUserId;
-            RequiredVerificationLevel = e.RequiredVerificationLevel;
+            if (Id == 0)
+                Id = e.SessionId;
+
+            if (e.AdminUserId != Guid.Empty)
+                AdminUserId = e.AdminUserId;
+
+            if (e.Mode != default)
+                Mode = e.Mode;
+
+            if (e.RequiredVerificationLevel != default)
+                RequiredVerificationLevel = e.RequiredVerificationLevel;
+
+            return this;
         }
 
-        public void Apply(CandidateAddedDomainEvent e)
-            => _candidates[e.CandidateId] = new Candidate(e.CandidateId, e.Name, 0);
+        public VotingSessionAggregate Apply(CandidateAddedDomainEvent e)
+        {
+            _candidates[e.CandidateId] = new Candidate(e.CandidateId, e.Name, 0);
+            return this;
+        }
 
-        public void Apply(CandidateRemovedDomainEvent e)
-            => _candidates.Remove(e.CandidateId);
+        public VotingSessionAggregate Apply(CandidateRemovedDomainEvent e)
+        {
+            _candidates.Remove(e.CandidateId);
+            return this;
+        }
 
-        public void Apply(VotingStartedDomainEvent e)
+        public VotingSessionAggregate Apply(VotingStartedDomainEvent e)
         {
             VotingActive = true;
             StartTimeUtc = e.StartTimeUtc;
             EndTimeUtc = e.EndTimeUtc;
+
+            return this;
         }
 
-        public void Apply(VotingEndedDomainEvent e)
+        public VotingSessionAggregate Apply(VotingEndedDomainEvent e)
         {
             VotingActive = false;
             EndTimeUtc = e.EndTimeUtc;
+
+            return this;
         }
 
-        public void Apply(VoteCastDomainEvent e)
+        public VotingSessionAggregate Apply(VoteCastDomainEvent e)
         {
             if (_candidates.TryGetValue(e.CandidateId, out var candidate))
             {
@@ -63,6 +79,35 @@ namespace Voting.Domain.Aggregates
                 _candidates[e.CandidateId] = candidate;
             }
             _votedUserIds.Add(e.VoterId);
+
+            return this;
+        }
+
+        public VotingSessionAggregate Apply(VoterRegisteredDomainEvent e)
+        {
+            _votedUserIds.Add(e.UserId);
+
+            return this;
+        }
+
+        public VotingSessionAggregate Apply(CandidateDescriptionUpdatedDomainEvent e)
+        {
+            if (!_candidates.TryGetValue(e.CandidateId, out var candidate))
+                throw new DomainException($"Candidate {e.CandidateId} not found");
+            if (VotingActive)
+                throw new DomainException("Cannot update description during active voting");
+
+            candidate.UpdateDescription(e.NewDescription);
+            _candidates[e.CandidateId] = candidate;
+
+
+            AddDomainEvent(new CandidateDescriptionUpdatedDomainEvent(
+                Id,
+                e.CandidateId,
+                e.NewDescription
+            ));
+
+            return this;
         }
         #endregion
 
@@ -84,32 +129,6 @@ namespace Voting.Domain.Aggregates
             var @event = new VoterRegisteredDomainEvent(Id, voter.Id, voter.BlockchainAddress);
             AddDomainEvent(@event);
             Apply(@event);
-        }
-
-        public void Apply(VoterRegisteredDomainEvent e)
-        {
-            _votedUserIds.Add(e.UserId);
-        }
-
-        // Команда на изменение описания (как до этого)
-        public void UpdateCandidateDescription(uint candidateId, string newDescription)
-        {
-            if (Id == 0)
-                throw new DomainException("Session not initialized");
-            if (!_candidates.TryGetValue(candidateId, out var candidate))
-                throw new DomainException($"Candidate {candidateId} not found");
-            if (VotingActive)
-                throw new DomainException("Cannot update description during active voting");
-
-            candidate.UpdateDescription(newDescription);
-            _candidates[candidateId] = candidate;
-
-
-            AddDomainEvent(new CandidateDescriptionUpdatedDomainEvent(
-                Id,
-                candidateId,
-                newDescription
-            ));
         }
     }
 }

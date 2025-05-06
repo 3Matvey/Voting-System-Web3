@@ -1,4 +1,4 @@
-﻿namespace Voting.Application.DTOs
+﻿namespace Voting.Application.DTOs.Requests
 {
     /// <summary>Запрос на запуск голосования.</summary>
     public record StartVotingRequest(

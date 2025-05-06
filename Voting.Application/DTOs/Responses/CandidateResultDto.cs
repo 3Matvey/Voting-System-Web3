@@ -1,4 +1,4 @@
-﻿namespace Voting.Application.DTOs
+﻿namespace Voting.Application.DTOs.Responses
 {
     /// <summary>Результаты голосования для кандидата.</summary>
     public record CandidateResultDto(

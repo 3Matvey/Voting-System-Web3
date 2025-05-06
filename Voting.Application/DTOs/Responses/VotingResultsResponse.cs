@@ -1,7 +1,7 @@
-﻿namespace Voting.Application.DTOs
+﻿namespace Voting.Application.DTOs.Responses
 {
     /// <summary>Результаты сессии голосования.</summary>
-    public record VotingResultsDto(
+    public record VotingResultsResponse(
         uint SessionId,
         List<CandidateResultDto> Candidates
     );
