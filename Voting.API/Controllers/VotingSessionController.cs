@@ -10,7 +10,8 @@ namespace Voting.API.Controllers
     [Route("api/[controller]")]
     [ApiController]
     public class VotingSessionsController(
-        CreateVotingSessionUseCase create
+        CreateVotingSessionUseCase create,
+        AddCandidateUseCase addCandidate
     ) : BaseController
     {
         public async Task<IActionResult> Create([FromBody] CreateVotingSessionRequest dto)
@@ -25,6 +26,19 @@ namespace Voting.API.Controllers
                 onFailure: Problem
             );
         }
+
+
+        [HttpPost("{sessionId:int}/candidates")]
+        public async Task<IActionResult> AddCandidate([FromRoute] uint sessionId, [FromBody] AddCandidateRequest request)
+        {
+            var result = await addCandidate.Execute(sessionId, request);
+
+            return result.Match(
+                onSuccess: Ok,
+                onFailure: Problem
+            );
+        }
+
 
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(uint id)
