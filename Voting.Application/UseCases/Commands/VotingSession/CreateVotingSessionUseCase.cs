@@ -1,13 +1,10 @@
-﻿using System;
-using System.Threading.Tasks;
-using Voting.Application.DTOs.Requests;
+﻿using Voting.Application.DTOs.Requests;
 using Voting.Application.DTOs.Responses;
 using Voting.Application.Interfaces;
 using Voting.Domain.Events;
 using Voting.Domain.Interfaces;
-using Voting.Shared.ResultPattern;
 
-namespace Voting.Application.UseCases.Create
+namespace Voting.Application.UseCases.Commands.VotingSession
 {
     public class CreateVotingSessionUseCase(
         IUnitOfWork uow,

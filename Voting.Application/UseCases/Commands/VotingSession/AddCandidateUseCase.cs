@@ -4,7 +4,7 @@ using Voting.Application.Events;
 using Voting.Application.Interfaces;
 using Voting.Domain.Interfaces;
 
-namespace Voting.Application.UseCases.Create
+namespace Voting.Application.UseCases.Commands.VotingSession
 {
     public class AddCandidateUseCase(
         IUnitOfWork uow,
@@ -12,7 +12,7 @@ namespace Voting.Application.UseCases.Create
         IContractEventListener listener)
     {
         private readonly TimeSpan _timeout = TimeSpan.FromSeconds(30);
-
+        [тут атрибут]
         public async Task<Result<AddCandidateResponse>> Execute(uint sessionId, AddCandidateRequest request)
         {
             if (request is null)

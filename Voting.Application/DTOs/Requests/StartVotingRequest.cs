@@ -1,7 +1,10 @@
 ﻿namespace Voting.Application.DTOs.Requests
 {
     /// <summary>Запрос на запуск голосования.</summary>
-    public record StartVotingRequest(
-        int DurationMinutes
-    );
+    public class StartVotingRequest
+    {
+        public Guid AdminUserId { get; set; }
+        public uint SessionId { get; set; }
+        public int DurationMinutes { get; set; }
+    }
 }

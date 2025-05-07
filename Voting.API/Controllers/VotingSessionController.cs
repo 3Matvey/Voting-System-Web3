@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Voting.Application.DTOs.Requests;
-using Voting.Application.UseCases.Create;
+using Voting.Application.UseCases.Commands.VotingSession;
 using Voting.Shared.ResultPattern;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860

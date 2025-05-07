@@ -17,10 +17,4 @@
     <ProjectReference Include="..\Voting.Shared\Voting.Shared.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="UseCases\Update\" />
-    <Folder Include="UseCases\List\" />
-    <Folder Include="UseCases\Delete\" />
-  </ItemGroup>
-
 </Project>

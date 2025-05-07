@@ -6,7 +6,6 @@ using Voting.Domain.Interfaces;
 using Voting.Application.Interfaces;
 using Voting.Application.Events;
 using Voting.Domain.Exceptions;
-using Voting.Domain.Interfaces.Repositories;
 
 namespace Voting.Application.Projections
 {

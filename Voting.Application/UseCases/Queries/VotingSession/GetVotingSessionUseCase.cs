@@ -2,7 +2,7 @@
 using Voting.Application.DTOs.Responses;
 using Voting.Domain.Interfaces;
 
-namespace Voting.Application.UseCases.Get
+namespace Voting.Application.UseCases.Queries.VotingSession
 {
     /// <summary>
     /// Запрос на получение всей информации по сессии голосования.
