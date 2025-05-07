@@ -2,6 +2,7 @@
 using Voting.Application.DTOs.Requests;
 using Voting.Application.DTOs.Responses;
 using Voting.Domain.Aggregates;
+using Voting.Domain.Entities;
 
 namespace Voting.Application.Mappings
 {
@@ -11,6 +12,25 @@ namespace Voting.Application.Mappings
         public MappingProfile()
         {
             CreateMap<VotingSessionAggregate, CreateVotingSessionResponse>();
+
+
+
+
+
+
+            CreateMap<VotingSessionAggregate, VotingSessionResponse>()
+            .ForMember(dest => dest.SessionId,
+                       opt => opt.MapFrom(src => src.Id))
+            .ForMember(dest => dest.Candidates,
+                       opt => opt.MapFrom(src => src.GetCandidates()))
+            //.ForMember(dest => dest.RegisteredVoterIds,
+              //FIXME         opt => opt.MapFrom(src => src.GetRegisteredVoterIds()));
+
+            CreateMap<Candidate, CandidateDto>()
+                .ForMember(dest => dest.CandidateId, opt => opt.MapFrom(src => src.Id))
+                .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description))
+                .ForMember(dest => dest.VoteCount, opt => opt.MapFrom(src => src.VoteCount));
+
             //    // Маппинг кандидата в DTO результатов кандидата
             //    CreateMap<Candidate, CandidateResultDto>()
             //        .ForMember(dest => dest.CandidateId, opt => opt.MapFrom(src => src.Id))

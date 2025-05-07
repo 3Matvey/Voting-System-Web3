@@ -14,15 +14,25 @@ namespace Voting.API.Controllers
         AddCandidateUseCase addCandidate
     ) : BaseController
     {
+        [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateVotingSessionRequest dto)
         {
             var result = await create.Execute(dto);
 
             return result.Match(
-                onSuccess: r => CreatedAtAction(
-                nameof(GetById),
-                new { id = r.SessionId },
-                r),
+                onSuccess: r =>
+                {
+                    var body = new
+                    {
+                        Message = "Voting session created successfully",
+                        Session = r
+                    };
+
+                    return CreatedAtRoute(
+                        routeName: nameof(GetById),
+                        routeValues: new { sessionId = r.SessionId },
+                        value: body);
+                },
                 onFailure: Problem
             );
         }

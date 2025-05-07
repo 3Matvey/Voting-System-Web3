@@ -8,7 +8,18 @@ namespace Voting.Domain.Aggregates
 {
     public sealed class VotingSessionAggregate : AggregateRoot
     {
-        public uint Id { get; private set; }
+        private uint _id;
+        public uint Id
+        {
+            get => _id;
+            private set
+            {
+                if (_id == 0)
+                    _id = value;
+                else if (_id != value)
+                    throw new DomainException($"Attempt to overwrite the Id in the session {_id} to {value}");
+            }
+        }
         public RegistrationMode Mode { get; private set; }
         public VerificationLevel RequiredVerificationLevel { get; private set; }
         public Guid AdminUserId { get; private set; }
@@ -18,16 +29,19 @@ namespace Voting.Domain.Aggregates
 
         private readonly Dictionary<uint, Candidate> _candidates = [];
         private readonly HashSet<Guid> _votedUserIds = [];
+        private readonly HashSet<Guid> _registeredUserIds = [];
 
         public VotingSessionAggregate() { }
 
+        public IReadOnlyCollection<Guid> GetRegisteredUserIds() => _registeredUserIds.ToList().AsReadOnly();
+        public IReadOnlyCollection<Guid> GetVotedUserIds() => _votedUserIds.ToList().AsReadOnly();
         public IReadOnlyCollection<Candidate> GetCandidates() => _candidates.Values;
         public bool HasVoted(Guid userId) => _votedUserIds.Contains(userId);
 
         #region Apply
         public VotingSessionAggregate Apply(SessionCreatedDomainEvent e)
         {
-            if (Id == 0)
+            if (e.SessionId != 0)
                 Id = e.SessionId;
 
             if (e.AdminUserId != Guid.Empty)
@@ -85,7 +99,7 @@ namespace Voting.Domain.Aggregates
 
         public VotingSessionAggregate Apply(VoterRegisteredDomainEvent e)
         {
-            _votedUserIds.Add(e.UserId);
+            _registeredUserIds.Add(e.UserId);
 
             return this;
         }
