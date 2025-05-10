@@ -8,7 +8,11 @@ namespace Voting.Domain.Interfaces.Repositories
         Task<User?> GetByIdAsync(Guid id,
             CancellationToken cancellationToken = default,
             params Expression<Func<User, object>>[] includesProperties);
-        Task<User?> GetByUsernameAsync(string username);
-        Task<User?> GetByBlockchainAddressAsync(string address);
+        Task<User?> GetByEmailAsync(string email,
+            CancellationToken cancellationToken = default,
+            params Expression<Func<User, object>>[] includesProperties);
+        Task<User?> GetByBlockchainAddressAsync(string address,
+            CancellationToken cancellationToken = default,
+            params Expression<Func<User, object>>[] includesProperties);
     }
 }

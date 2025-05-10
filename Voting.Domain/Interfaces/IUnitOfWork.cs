@@ -2,7 +2,7 @@
 
 namespace Voting.Domain.Interfaces
 {
-    public interface IUnitOfWork : IAsyncDisposable
+    public interface IUnitOfWork : IDisposable
     {
         IUserRepository Users { get; }
         IVotingSessionRepository VotingSessions { get; }

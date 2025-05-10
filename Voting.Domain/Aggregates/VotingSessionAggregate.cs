@@ -27,15 +27,16 @@ namespace Voting.Domain.Aggregates
         public DateTime? StartTimeUtc { get; private set; }
         public DateTime? EndTimeUtc { get; private set; }
 
+        public IReadOnlyCollection<Candidate> Candidates => _candidates.Values;
+        public IReadOnlyCollection<Guid> RegisteredUserIds => _registeredUserIds.ToList().AsReadOnly();
+        public IReadOnlyCollection<Guid> VotedUserIds =>_votedUserIds.ToList().AsReadOnly();
+
         private readonly Dictionary<uint, Candidate> _candidates = [];
         private readonly HashSet<Guid> _votedUserIds = [];
         private readonly HashSet<Guid> _registeredUserIds = [];
 
         public VotingSessionAggregate() { }
 
-        public IReadOnlyCollection<Guid> GetRegisteredUserIds() => _registeredUserIds.ToList().AsReadOnly();
-        public IReadOnlyCollection<Guid> GetVotedUserIds() => _votedUserIds.ToList().AsReadOnly();
-        public IReadOnlyCollection<Candidate> GetCandidates() => _candidates.Values;
         public bool HasVoted(Guid userId) => _votedUserIds.Contains(userId);
 
         #region Apply

@@ -16,9 +16,9 @@ namespace Voting.Application.Mappings
             .ForMember(dest => dest.SessionId,
                        opt => opt.MapFrom(src => src.Id))
             .ForMember(dest => dest.Candidates,
-                       opt => opt.MapFrom(src => src.GetCandidates()))
+                       opt => opt.MapFrom(src => src.Candidates))
             .ForMember(dest => dest.RegisteredVoterIds,
-                     opt => opt.MapFrom(src => src.GetRegisteredUserIds()));
+                     opt => opt.MapFrom(src => src.RegisteredUserIds));
 
             CreateMap<Candidate, CandidateDto>()
                 .ForMember(dest => dest.CandidateId, opt => opt.MapFrom(src => src.Id))

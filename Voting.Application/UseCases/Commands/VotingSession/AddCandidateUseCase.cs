@@ -12,7 +12,7 @@ namespace Voting.Application.UseCases.Commands.VotingSession
         IContractEventListener listener)
     {
         private readonly TimeSpan _timeout = TimeSpan.FromSeconds(30);
-        [тут атрибут]
+        //[тут атрибут] FIXME 
         public async Task<Result<AddCandidateResponse>> Execute(uint sessionId, AddCandidateRequest request)
         {
             if (request is null)
