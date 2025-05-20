@@ -1,42 +1,46 @@
-version: '3.8'
 services:
+  # 1) Ganache (testnet)
+  ganache:
+    image: trufflesuite/ganache-cli:latest
+    command: ["ganache-cli", "--deterministic", "--host", "0.0.0.0", "--port", "8545"]
+    ports:
+      - "8545:8545"
 
-  # ----------------------------------------
-  # PostgreSQL Database
-  # ----------------------------------------
+  # 2) Truffle Migrations 
+  truffle_migrate:
+    image: node:18-alpine
+    working_dir: /blockchain
+    volumes:
+      - ./Voting.Contract:/blockchain:ro
+    command: >
+      sh -c "npm install && truffle migrate --network development"
+    depends_on:
+      - ganache
+
+  # 3)
+  configurator:
+    image: python:3.11-alpine
+    working_dir: /blockchain
+    volumes:
+      - ./Voting.Contract:/blockchain:ro
+      - ./config:/config            # bind to local dir
+    environment:
+      - BLOCKCHAIN_RPC_URL=http://ganache:8545
+      - ARTIFACT_PATH=/blockchain/build/contracts/VotingSystem.json
+    command: |
+      sh -c "pip install web3 && \
+             python scripts/generate_blockchain_config.py"
+
+  # 4) Postgres + EF-migrator + API 
   postgres:
     image: postgres:14
-    restart: always
     environment:
       POSTGRES_DB: voting
       POSTGRES_USER: voting
       POSTGRES_PASSWORD: secret
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - '5432:5432'
 
-  # ----------------------------------------
-  # Truffle / Ganache Testnet
-  # ----------------------------------------
-  truffle:
-    build:
-      context: ./Voting.Contract
-      dockerfile: Dockerfile
-      target: truffle
-    volumes:
-      - ./Voting.Contract/contracts:/blockchain/contracts
-      - ./Voting.Contract/migrations:/blockchain/migrations
-      - ./Voting.Contract/build/contracts:/blockchain/build/contracts
-    depends_on:
-      - postgres
-    ports:
-      - '8545:8545'
-    # при старте достаточно поднять Ganache, а контракт задеплоится из CI или вручную
-
-  # ----------------------------------------
-  # EF Migrations (использует SDK stage из Voting.API Dockerfile)
-  # ----------------------------------------
   migrator:
     build:
       context: .
@@ -51,25 +55,26 @@ services:
       ConnectionStrings__VotingDatabase: "Host=postgres;Database=voting;Username=voting;Password=secret"
     depends_on:
       - postgres
-    restart: 'no'
 
-  # ----------------------------------------
-  # ASP.NET Core API
-  # ----------------------------------------
-  api:
-    build:
-      context: .
-      dockerfile: Voting.API/Dockerfile
-      target: final
-    environment:
-      ConnectionStrings__VotingDatabase: "Host=postgres;Database=voting;Username=voting;Password=secret"
-      # (другие переменные, например Blockchain:RpcUrl,Blockchain:WsUrl)
-    ports:
-      - '8080:8080'
-    depends_on:
-      - postgres
-      - migrator
-      - truffle
+  # api:
+  #   build:
+  #     context: .
+  #     dockerfile: Voting.API/Dockerfile
+  #     target: final
+  #   volumes:
+  #     - ./config:/config:ro           # bind to local dir
+  #   environment:
+  #     ASPNETCORE_ENVIRONMENT: "Production"
+  #     Blockchain__ArtifactPath: "/config/blockchain-config.json"
+  #   ports:
+  #     - "8080:8080"
+  #   depends_on:
+  #     - postgres
+  #     - migrator
+  #     - ganache
+  #     - truffle_migrate
+  #     - configurator
+
 
 volumes:
   pgdata:

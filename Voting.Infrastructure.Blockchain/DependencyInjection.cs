@@ -27,7 +27,6 @@ namespace Voting.Infrastructure.Blockchain
             services.Configure<BlockchainOptions>(
                 configuration.GetSection("Blockchain"));
 
-            // 2) Слушатель событий (WebSocket) — он нужен адаптеру
             services.AddSingleton<IContractEventListener>(sp =>
             {
                 var opts = sp.GetRequiredService<IOptions<BlockchainOptions>>().Value;
@@ -39,7 +38,6 @@ namespace Voting.Infrastructure.Blockchain
                 );
             });
 
-            // 3) Адаптер работы с контрактом (RPC) — теперь зависит от IContractEventListener
             services.AddSingleton<ISmartContractAdapter>(sp =>
             {
                 var opts = sp.GetRequiredService<IOptions<BlockchainOptions>>().Value;
@@ -49,7 +47,6 @@ namespace Voting.Infrastructure.Blockchain
                     rpcUrl: opts.RpcUrl,
                     defaultSenderAddress: opts.DefaultSenderAddress,
                     contractAddress: opts.ContractAddress,
-                    listener: listener,
                     logger: logger
                 );
             });

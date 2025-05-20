@@ -16,28 +16,17 @@ namespace Voting.Infrastructure.Blockchain
         private readonly ILogger<SmartContractAdapter>? _logger;
         private readonly string _defaultSenderAddress;
         private readonly Dictionary<uint, string> _sessionAdmins = [];
-        private readonly IContractEventListener _listener;
 
         public SmartContractAdapter(
             string rpcUrl,
             string contractAddress,
             string defaultSenderAddress,
-            IContractEventListener listener,
             ILogger<SmartContractAdapter>? logger = null)
         {
             var web3 = new Web3(rpcUrl);
             _handler = web3.Eth.GetContractHandler(contractAddress);
             _defaultSenderAddress = defaultSenderAddress;
-            _listener = listener;
             _logger = logger;
-
-            _listener.SessionCreated += (_, e) =>
-            {
-                _sessionAdmins[e.SessionId] = e.SessionAdmin;
-                _logger?.LogDebug(
-                    "Mapped session {SessionId} → admin {Admin}",
-                    e.SessionId, e.SessionAdmin);
-            };
         }
 
         private string GetSessionAdmin(uint sessionId)
@@ -49,20 +38,27 @@ namespace Voting.Infrastructure.Blockchain
         }
         public async Task<uint> CreateSessionAsync(string sessionAdmin, CancellationToken ct = default)
         {
-            var fn = new CreateSessionFunction { 
+            var fn = new CreateSessionFunction
+            {
                 SessionAdmin = sessionAdmin,
                 FromAddress = _defaultSenderAddress
             };
+
             var receipt = await _handler
                 .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)
                 .ConfigureAwait(false);
 
-            // SessionCreated из receipt
+            // Извлекаем SessionCreated event из receipt
             var evtLog = receipt
                 .DecodeAllEvents<SessionCreatedEventDTO>()
-                .FirstOrDefault();
-            return evtLog != null ? (uint)evtLog.Event.SessionId
-                : throw new InvalidOperationException("SessionCreated event not found");
+                .FirstOrDefault() ?? throw new InvalidOperationException("SessionCreated event not found");
+            var sessionId = (uint)evtLog.Event.SessionId;
+
+            // Сразу сохраняем мэппинг session → admin
+            _sessionAdmins[sessionId] = sessionAdmin;
+            _logger?.LogDebug("Session {SessionId} admin mapped to {Admin}", sessionId, sessionAdmin);
+
+            return sessionId;
         }
 
         public async Task<string> AddCandidateAsync(uint sessionId, string candidateName, CancellationToken ct = default)
