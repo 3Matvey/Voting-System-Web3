@@ -20,6 +20,7 @@ namespace Voting.Domain.Aggregates
                     throw new DomainException($"Attempt to overwrite the Id in the session {_id} to {value}");
             }
         }
+
         public RegistrationMode Mode { get; private set; }
         public VerificationLevel RequiredVerificationLevel { get; private set; }
         public Guid AdminUserId { get; private set; }
@@ -27,13 +28,14 @@ namespace Voting.Domain.Aggregates
         public DateTime? StartTimeUtc { get; private set; }
         public DateTime? EndTimeUtc { get; private set; }
 
-        public IReadOnlyCollection<Candidate> Candidates => _candidates.Values;
-        public IReadOnlyCollection<Guid> RegisteredUserIds => _registeredUserIds.ToList().AsReadOnly();
-        public IReadOnlyCollection<Guid> VotedUserIds =>_votedUserIds.ToList().AsReadOnly();
+        private readonly List<Candidate> _candidates = new();
+        public ICollection<Candidate> Candidates => _candidates;
 
-        private readonly Dictionary<uint, Candidate> _candidates = [];
-        private readonly HashSet<Guid> _votedUserIds = [];
-        private readonly HashSet<Guid> _registeredUserIds = [];
+        private readonly HashSet<Guid> _votedUserIds = new();
+        private readonly HashSet<Guid> _registeredUserIds = new();
+
+        public IReadOnlyCollection<Guid> RegisteredUserIds => _registeredUserIds.ToList().AsReadOnly();
+        public IReadOnlyCollection<Guid> VotedUserIds => _votedUserIds.ToList().AsReadOnly();
 
         public VotingSessionAggregate() { }
 
@@ -42,15 +44,12 @@ namespace Voting.Domain.Aggregates
         #region Apply
         public VotingSessionAggregate Apply(SessionCreatedDomainEvent e)
         {
-            if (e.SessionId != 0)
+            if (e.SessionId != 0) 
                 Id = e.SessionId;
-
-            if (e.AdminUserId != Guid.Empty)
+            if (e.AdminUserId != Guid.Empty) 
                 AdminUserId = e.AdminUserId;
-
-            if (e.Mode != default)
+            if (e.Mode != default) 
                 Mode = e.Mode;
-
             if (e.RequiredVerificationLevel != default)
                 RequiredVerificationLevel = e.RequiredVerificationLevel;
 
@@ -59,13 +58,15 @@ namespace Voting.Domain.Aggregates
 
         public VotingSessionAggregate Apply(CandidateAddedDomainEvent e)
         {
-            _candidates[e.CandidateId] = new Candidate(e.CandidateId, e.Name, 0);
+            if (_candidates.All(c => c.Id != e.CandidateId))
+                _candidates.Add(new Candidate(e.CandidateId, e.Name, 0));
+
             return this;
         }
 
         public VotingSessionAggregate Apply(CandidateRemovedDomainEvent e)
         {
-            _candidates.Remove(e.CandidateId);
+            _candidates.RemoveAll(c => c.Id == e.CandidateId);
             return this;
         }
 
@@ -74,7 +75,6 @@ namespace Voting.Domain.Aggregates
             VotingActive = true;
             StartTimeUtc = e.StartTimeUtc;
             EndTimeUtc = e.EndTimeUtc;
-
             return this;
         }
 
@@ -82,40 +82,37 @@ namespace Voting.Domain.Aggregates
         {
             VotingActive = false;
             EndTimeUtc = e.EndTimeUtc;
-
             return this;
         }
 
         public VotingSessionAggregate Apply(VoteCastDomainEvent e)
         {
-            if (_candidates.TryGetValue(e.CandidateId, out var candidate))
-            {
+            // ищем кандидата и инкрементим
+            var candidate = _candidates.SingleOrDefault(c => c.Id == e.CandidateId);
+            if (candidate != null)
                 candidate.IncrementVote();
-                _candidates[e.CandidateId] = candidate;
-            }
-            _votedUserIds.Add(e.VoterId);
 
+            _votedUserIds.Add(e.VoterId);
             return this;
         }
 
         public VotingSessionAggregate Apply(VoterRegisteredDomainEvent e)
         {
             _registeredUserIds.Add(e.UserId);
-
             return this;
         }
 
         public VotingSessionAggregate Apply(CandidateDescriptionUpdatedDomainEvent e)
         {
-            if (!_candidates.TryGetValue(e.CandidateId, out var candidate))
+            var candidate = _candidates.SingleOrDefault(c => c.Id == e.CandidateId);
+            if (candidate is null)
                 throw new DomainException($"Candidate {e.CandidateId} not found");
             if (VotingActive)
                 throw new DomainException("Cannot update description during active voting");
 
             candidate.UpdateDescription(e.NewDescription);
-            _candidates[e.CandidateId] = candidate;
 
-
+            // повторно эмитим событие в DomainEvents, если нужно
             AddDomainEvent(new CandidateDescriptionUpdatedDomainEvent(
                 Id,
                 e.CandidateId,
@@ -126,21 +123,17 @@ namespace Voting.Domain.Aggregates
         }
         #endregion
 
-        // OFF-CHAIN команда — регистрируем юзера на сессию
         public void RegisterVoter(User voter)
         {
             if (Id == 0)
                 throw new DomainException("Session not initialized");
-
             if (voter.VerificationLevel < RequiredVerificationLevel)
                 throw new DomainException(
                     $"User {voter.Id} has insufficient verification: " +
                     $"{voter.VerificationLevel}, required: {RequiredVerificationLevel}");
-
             if (_votedUserIds.Contains(voter.Id))
                 throw new DomainException($"User {voter.Id} is already registered or has voted");
 
-            // аккумулируем событие регистрации
             var @event = new VoterRegisteredDomainEvent(Id, voter.Id, voter.BlockchainAddress);
             AddDomainEvent(@event);
             Apply(@event);

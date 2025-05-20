@@ -90,7 +90,7 @@ namespace Voting.Infrastructure.Data
                 builder.Property(v => v.RegisteredUserIds)
                        .HasConversion(
                            v => v.ToArray(),
-                           v => (IReadOnlyCollection<Guid>)v.ToList().AsReadOnly())
+                           v => v.ToList().AsReadOnly())
                        .HasColumnType("uuid[]")
                        .HasField("_registeredUserIds");
 
@@ -100,7 +100,7 @@ namespace Voting.Infrastructure.Data
                 builder.Property(v => v.VotedUserIds)
                        .HasConversion(
                            v => v.ToArray(),
-                           v => (IReadOnlyCollection<Guid>)v.ToList().AsReadOnly())
+                           v => v.ToList().AsReadOnly())
                        .HasColumnType("uuid[]")
                        .HasField("_votedUserIds");
             });

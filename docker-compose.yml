@@ -1,0 +1,75 @@
+version: '3.8'
+services:
+
+  # ----------------------------------------
+  # PostgreSQL Database
+  # ----------------------------------------
+  postgres:
+    image: postgres:14
+    restart: always
+    environment:
+      POSTGRES_DB: voting
+      POSTGRES_USER: voting
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+
+  # ----------------------------------------
+  # Truffle / Ganache Testnet
+  # ----------------------------------------
+  truffle:
+    build:
+      context: ./Voting.Contract
+      dockerfile: Dockerfile
+      target: truffle
+    volumes:
+      - ./Voting.Contract/contracts:/blockchain/contracts
+      - ./Voting.Contract/migrations:/blockchain/migrations
+      - ./Voting.Contract/build/contracts:/blockchain/build/contracts
+    depends_on:
+      - postgres
+    ports:
+      - '8545:8545'
+    # при старте достаточно поднять Ganache, а контракт задеплоится из CI или вручную
+
+  # ----------------------------------------
+  # EF Migrations (использует SDK stage из Voting.API Dockerfile)
+  # ----------------------------------------
+  migrator:
+    build:
+      context: .
+      dockerfile: Voting.API/Dockerfile
+      target: build
+    command: |
+      dotnet ef database update \
+        --no-build \
+        --project Voting.Infrastructure.Data \
+        --startup-project Voting.API
+    environment:
+      ConnectionStrings__VotingDatabase: "Host=postgres;Database=voting;Username=voting;Password=secret"
+    depends_on:
+      - postgres
+    restart: 'no'
+
+  # ----------------------------------------
+  # ASP.NET Core API
+  # ----------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Voting.API/Dockerfile
+      target: final
+    environment:
+      ConnectionStrings__VotingDatabase: "Host=postgres;Database=voting;Username=voting;Password=secret"
+      # (другие переменные, например Blockchain:RpcUrl,Blockchain:WsUrl)
+    ports:
+      - '8080:8080'
+    depends_on:
+      - postgres
+      - migrator
+      - truffle
+
+volumes:
+  pgdata:

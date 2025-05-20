@@ -7,18 +7,12 @@ namespace Voting.Application.UseCases.Commands.VotingSession
     /// <summary>
     /// Завершает голосование on-chain.
     /// </summary>
-    public class EndVotingUseCase
+    public class EndVotingUseCase(
+        ISmartContractAdapter contract,
+        IUnitOfWork uow)
     {
-        private readonly ISmartContractAdapter _contract;
-        private readonly IUnitOfWork _uow;
-
-        public EndVotingUseCase(
-            ISmartContractAdapter contract,
-            IUnitOfWork uow)
-        {
-            _contract = contract ?? throw new ArgumentNullException(nameof(contract));
-            _uow = uow ?? throw new ArgumentNullException(nameof(uow));
-        }
+        private readonly ISmartContractAdapter _contract = contract ?? throw new ArgumentNullException(nameof(contract));
+        private readonly IUnitOfWork _uow = uow ?? throw new ArgumentNullException(nameof(uow));
 
         public async Task<Result> Execute(EndVotingRequest request)
         {

@@ -12,7 +12,7 @@ namespace Voting.API.Controllers
     public class VotingSessionsController(
         CreateVotingSessionUseCase create,
         AddCandidateUseCase addCandidate
-    ) : BaseController
+    ) : ControllerBaseWithResult
     {
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateVotingSessionRequest dto)

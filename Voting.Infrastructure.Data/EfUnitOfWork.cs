@@ -4,7 +4,7 @@ using Voting.Infrastructure.Data.Repositories;
 
 namespace Voting.Infrastructure.Data
 {
-    public class EfUniteOfWork(AppDbContext context) : IUnitOfWork
+    public class EfUnitOfWork(AppDbContext context) : IUnitOfWork
     {
         private IUserRepository? _userRepository;
         private IVotingSessionRepository? _sessionRepository;

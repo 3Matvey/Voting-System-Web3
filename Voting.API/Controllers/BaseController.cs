@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Voting.API.Controllers
 {
-    public abstract class BaseController : ControllerBase
+    public abstract class ControllerBaseWithResult : ControllerBase
     {
         protected IActionResult Problem(Error error)
         {
