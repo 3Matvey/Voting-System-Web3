@@ -20,7 +20,9 @@ namespace Voting.Infrastructure.Data.Migrations
                     Email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
                     BlockchainAddress = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
                     Role = table.Column<string>(type: "text", nullable: false),
-                    VerificationLevel = table.Column<int>(type: "integer", nullable: false)
+                    VerificationLevel = table.Column<int>(type: "integer", nullable: false),
+                    PasswordHash = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
+                    PasswordSalt = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false)
                 },
                 constraints: table =>
                 {

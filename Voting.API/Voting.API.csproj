@@ -22,6 +22,7 @@
     <ProjectReference Include="..\Voting.Application\Voting.Application.csproj" />
     <ProjectReference Include="..\Voting.Infrastructure.Blockchain\Voting.Infrastructure.Blockchain.csproj" />
     <ProjectReference Include="..\Voting.Infrastructure.Data\Voting.Infrastructure.Data.csproj" />
+    <ProjectReference Include="..\Voting.Infrastructure.Services\Voting.Infrastructure.Services.csproj" />
     <ProjectReference Include="..\Voting.Shared\Voting.Shared.csproj" />
   </ItemGroup>
 

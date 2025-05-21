@@ -15,7 +15,7 @@ namespace Voting.Infrastructure.Services
 
     public static class DependencyInjection
     {
-        public static IServiceCollection AddDataServices(
+        public static IServiceCollection AddApplicationServices(
                this IServiceCollection services,
                IConfiguration configuration)
         {

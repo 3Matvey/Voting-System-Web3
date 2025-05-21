@@ -12,7 +12,7 @@ using Voting.Infrastructure.Data;
 namespace Voting.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250520141442_InitialCreate")]
+    [Migration("20250521074127_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -28,7 +28,6 @@ namespace Voting.Infrastructure.Data.Migrations
             modelBuilder.Entity("Voting.Domain.Aggregates.User", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("BlockchainAddress")
@@ -37,6 +36,16 @@ namespace Voting.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(128)");
 
                     b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("PasswordSalt")
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");

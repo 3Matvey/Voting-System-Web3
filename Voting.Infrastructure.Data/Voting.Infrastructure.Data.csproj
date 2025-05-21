@@ -17,8 +17,4 @@
     <ProjectReference Include="..\Voting.Domain\Voting.Domain.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Mappings\" />
-  </ItemGroup>
-
 </Project>

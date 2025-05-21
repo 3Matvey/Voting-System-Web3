@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Voting.Domain.Aggregates;
+using Voting.Domain.Common;
 using Voting.Domain.Entities;
 
 namespace Voting.Infrastructure.Data
@@ -17,8 +18,12 @@ namespace Voting.Infrastructure.Data
             modelBuilder.Entity<User>(builder =>
             {
                 builder.ToTable("Users");
-                builder.HasKey(u => u.Id);
 
+                builder.HasKey(u => u.Id);
+                builder.Property(u => u.Id)
+                       .ValueGeneratedNever();
+
+                // простые свойства
                 builder.Property(u => u.Email)
                        .IsRequired()
                        .HasMaxLength(256);
@@ -27,13 +32,27 @@ namespace Voting.Infrastructure.Data
                        .IsRequired()
                        .HasMaxLength(128);
 
+                // enum → string
                 builder.Property(u => u.Role)
                        .HasConversion<string>()
                        .IsRequired();
 
+                // флаги → int
                 builder.Property(u => u.VerificationLevel)
                        .HasConversion<int>()
                        .IsRequired();
+
+                // пароль и соль
+                builder.Property(u => u.PasswordHash)
+                       .IsRequired()
+                       .HasMaxLength(512);
+
+                builder.Property(u => u.PasswordSalt)
+                       .IsRequired()
+                       .HasMaxLength(256);
+
+                // игнорируем коллекцию доменных событий из AggregateRoot
+                builder.Ignore(nameof(AggregateRoot.DomainEvents));
             });
 
             // -------------------------------
