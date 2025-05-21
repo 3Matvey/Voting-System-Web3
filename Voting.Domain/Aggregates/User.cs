@@ -15,6 +15,23 @@ namespace Voting.Domain.Aggregates
         public Role Role { get; private set; } = role;
         public VerificationLevel VerificationLevel { get; private set; } = VerificationLevel.None;
 
+        public string PasswordHash { get; private set; } = string.Empty;
+        public string PasswordSalt { get; private set; } = string.Empty;
+
+        public void SetPassword(string hash, string salt)
+        {
+            if (string.IsNullOrWhiteSpace(hash))
+                throw new ArgumentException("Password hash must not be empty.", nameof(hash));
+            if (string.IsNullOrWhiteSpace(salt))
+                throw new ArgumentException("Password salt must not be empty.", nameof(salt));
+
+            PasswordHash = hash;
+            PasswordSalt = salt;
+
+            // Опционально: доменное событие смены/установки пароля
+            AddDomainEvent(new UserPasswordSetDomainEvent(Id));
+        }
+
         public void VerifyEmail()
         {
             if (!VerificationLevel.HasFlag(VerificationLevel.Email))

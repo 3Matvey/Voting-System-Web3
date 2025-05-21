@@ -2,7 +2,7 @@
 using Voting.Domain.Common;
 using Voting.Domain.Interfaces;
 
-namespace Voting.Application.Services
+namespace Voting.Infrastructure.Services
 {
     public class InMemoryDomainEventPublisher(ILogger logger) : IDomainEventPublisher
     {

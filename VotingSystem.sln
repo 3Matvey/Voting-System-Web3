@@ -20,6 +20,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Элементы решен
 		docker-compose.yml = docker-compose.yml
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Voting.Infrastructure.Services", "Voting.Infrastructure.Services\Voting.Infrastructure.Services.csproj", "{F4122A54-84E0-4A73-800B-19E5C2F64B5C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -50,6 +52,10 @@ Global
 		{B36B6ACA-7085-4D06-A3F3-0A5BB1B5544A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B36B6ACA-7085-4D06-A3F3-0A5BB1B5544A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B36B6ACA-7085-4D06-A3F3-0A5BB1B5544A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F4122A54-84E0-4A73-800B-19E5C2F64B5C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F4122A54-84E0-4A73-800B-19E5C2F64B5C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F4122A54-84E0-4A73-800B-19E5C2F64B5C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F4122A54-84E0-4A73-800B-19E5C2F64B5C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
