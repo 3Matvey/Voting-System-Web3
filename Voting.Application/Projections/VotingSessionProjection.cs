@@ -1,21 +1,26 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Voting.Domain.Aggregates;
 using Voting.Domain.Events;
-using Voting.Domain.Interfaces;
-using Voting.Application.Interfaces;
-using Voting.Application.Events;
 using Voting.Domain.Exceptions;
+using Voting.Domain.Interfaces;
+using Voting.Application.Events;
+using Voting.Application.Interfaces;
 
 namespace Voting.Application.Projections
 {
     public class VotingSessionProjection : IHostedService
     {
         private readonly IContractEventListener _listener;
-        private readonly IUnitOfWork _uow;
+        private readonly IServiceScopeFactory _scopeFactory;
         private readonly IDomainEventPublisher _publisher;
 
-        private readonly ConcurrentDictionary<uint, VotingSessionAggregate> _sessions = [];
+        // кеш агрегатов
+        private readonly ConcurrentDictionary<uint, VotingSessionAggregate> _sessions = new();
 
         // делегаты для контрактных событий
         private readonly EventHandler<SessionCreatedEventArgs> _onChainSessionCreated;
@@ -27,45 +32,53 @@ namespace Voting.Application.Projections
 
         public VotingSessionProjection(
             IContractEventListener listener,
-            IUnitOfWork uow,
+            IServiceScopeFactory scopeFactory,
             IDomainEventPublisher publisher)
         {
             _listener = listener ?? throw new ArgumentNullException(nameof(listener));
-            _uow = uow ?? throw new ArgumentNullException(nameof(uow));
+            _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
             _publisher = publisher ?? throw new ArgumentNullException(nameof(publisher));
 
             // on-chain → domain events
-            _onChainSessionCreated = (_, e) => _publisher.Publish(new SessionCreatedDomainEvent(
-                                            e.SessionId,
-                                            Guid.Empty,
-                                            default,
-                                            default));
-            _onChainCandidateAdded = (_, e) => _publisher.Publish(new CandidateAddedDomainEvent(
-                                            e.SessionId, e.CandidateId, e.Name));
-            _onChainCandidateRemoved = (_, e) => _publisher.Publish(new CandidateRemovedDomainEvent(
-                                            e.SessionId, e.CandidateId));
-            _onChainVotingStarted = (_, e) => _publisher.Publish(new VotingStartedDomainEvent(
-                                            e.SessionId, e.StartTimeUtc, e.EndTimeUtc));
-            _onChainVotingEnded = (_, e) => _publisher.Publish(new VotingEndedDomainEvent(
-                                            e.SessionId, e.EndTimeUtc));
+            _onChainSessionCreated = (_, e) =>
+                _publisher.Publish(new SessionCreatedDomainEvent(
+                    e.SessionId, Guid.Empty, default, default));
+
+            _onChainCandidateAdded = (_, e) =>
+                _publisher.Publish(new CandidateAddedDomainEvent(
+                    e.SessionId, e.CandidateId, e.Name));
+
+            _onChainCandidateRemoved = (_, e) =>
+                _publisher.Publish(new CandidateRemovedDomainEvent(
+                    e.SessionId, e.CandidateId));
+
+            _onChainVotingStarted = (_, e) =>
+                _publisher.Publish(new VotingStartedDomainEvent(
+                    e.SessionId, e.StartTimeUtc, e.EndTimeUtc));
+
+            _onChainVotingEnded = (_, e) =>
+                _publisher.Publish(new VotingEndedDomainEvent(
+                    e.SessionId, e.EndTimeUtc));
+
+            // для VoteCast создаём scope для получения IUnitOfWork
             _onChainVoteCast = async (_, e) =>
             {
-                var user = await _uow.Users
+                using var scope = _scopeFactory.CreateScope();
+                var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+                var user = await uow.Users
                     .GetByBlockchainAddressAsync(e.Voter)
                     .ConfigureAwait(false)
                     ?? throw new DomainException($"Unknown voter address: {e.Voter}");
 
                 _publisher.Publish(new VoteCastDomainEvent(
-                    e.SessionId,
-                    user.Id,
-                    e.CandidateId
-                ));
+                    e.SessionId, user.Id, e.CandidateId));
             };
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            // подписываемся на контракта события
+            // подписываемся на on-chain события
             _listener.SessionCreated += _onChainSessionCreated;
             _listener.CandidateAdded += _onChainCandidateAdded;
             _listener.CandidateRemoved += _onChainCandidateRemoved;
@@ -74,23 +87,22 @@ namespace Voting.Application.Projections
             _listener.VoteCast += _onChainVoteCast;
 
             // подписываемся на доменные события
-            _publisher.Subscribe<SessionCreatedDomainEvent>(On);
-            _publisher.Subscribe<CandidateAddedDomainEvent>(On);
-            _publisher.Subscribe<CandidateRemovedDomainEvent>(On);
-            _publisher.Subscribe<VotingStartedDomainEvent>(On);
-            _publisher.Subscribe<VotingEndedDomainEvent>(On);
-            _publisher.Subscribe<VoteCastDomainEvent>(On);
-            _publisher.Subscribe<VoterRegisteredDomainEvent>(On);
-            _publisher.Subscribe<CandidateDescriptionUpdatedDomainEvent>(On);
+            _publisher.Subscribe<SessionCreatedDomainEvent>(OnSessionCreated);
+            _publisher.Subscribe<CandidateAddedDomainEvent>(OnCandidateAdded);
+            _publisher.Subscribe<CandidateRemovedDomainEvent>(OnCandidateRemoved);
+            _publisher.Subscribe<VotingStartedDomainEvent>(OnVotingStarted);
+            _publisher.Subscribe<VotingEndedDomainEvent>(OnVotingEnded);
+            _publisher.Subscribe<VoteCastDomainEvent>(OnVoteCast);
+            _publisher.Subscribe<VoterRegisteredDomainEvent>(OnVoterRegistered);
+            _publisher.Subscribe<CandidateDescriptionUpdatedDomainEvent>(OnCandidateDescriptionUpdated);
 
             return _listener.StartAsync();
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
-            await _listener.StopAsync();
+            await _listener.StopAsync().ConfigureAwait(false);
 
-            // отписываемся от контрактных
             _listener.SessionCreated -= _onChainSessionCreated;
             _listener.CandidateAdded -= _onChainCandidateAdded;
             _listener.CandidateRemoved -= _onChainCandidateRemoved;
@@ -102,64 +114,66 @@ namespace Voting.Application.Projections
         private VotingSessionAggregate GetOrCreate(uint sessionId)
             => _sessions.GetOrAdd(sessionId, _ => new VotingSessionAggregate());
 
-        // общий метод-обработчик всех доменных событий
-        private async void On(SessionCreatedDomainEvent e)
+        private async void OnSessionCreated(SessionCreatedDomainEvent e)
         {
             var agg = GetOrCreate(e.SessionId).Apply(e);
-            await UpsertAsync(agg);
+            await UpsertAsync(agg).ConfigureAwait(false);
         }
 
-        private async void On(CandidateAddedDomainEvent e)
+        private async void OnCandidateAdded(CandidateAddedDomainEvent e)
         {
             var agg = GetOrCreate(e.SessionId).Apply(e);
-            await UpsertAsync(agg);
+            await UpsertAsync(agg).ConfigureAwait(false);
         }
 
-        private async void On(CandidateRemovedDomainEvent e)
+        private async void OnCandidateRemoved(CandidateRemovedDomainEvent e)
         {
             var agg = GetOrCreate(e.SessionId).Apply(e);
-            await UpsertAsync(agg);
+            await UpsertAsync(agg).ConfigureAwait(false);
         }
 
-        private async void On(VotingStartedDomainEvent e)
+        private async void OnVotingStarted(VotingStartedDomainEvent e)
         {
             var agg = GetOrCreate(e.SessionId).Apply(e);
-            await UpsertAsync(agg);
+            await UpsertAsync(agg).ConfigureAwait(false);
         }
 
-        private async void On(VotingEndedDomainEvent e)
+        private async void OnVotingEnded(VotingEndedDomainEvent e)
         {
             var agg = GetOrCreate(e.SessionId).Apply(e);
-            await UpsertAsync(agg);
+            await UpsertAsync(agg).ConfigureAwait(false);
         }
 
-        private async void On(VoteCastDomainEvent e)
+        private async void OnVoteCast(VoteCastDomainEvent e)
         {
             var agg = GetOrCreate(e.SessionId).Apply(e);
-            await UpsertAsync(agg);
+            await UpsertAsync(agg).ConfigureAwait(false);
         }
 
-        private async void On(VoterRegisteredDomainEvent e)
+        private async void OnVoterRegistered(VoterRegisteredDomainEvent e)
         {
             var agg = GetOrCreate(e.SessionId).Apply(e);
-            await UpsertAsync(agg);
+            await UpsertAsync(agg).ConfigureAwait(false);
         }
 
-        private async void On(CandidateDescriptionUpdatedDomainEvent e)
+        private async void OnCandidateDescriptionUpdated(CandidateDescriptionUpdatedDomainEvent e)
         {
             var agg = GetOrCreate(e.SessionId).Apply(e);
-            await UpsertAsync(agg);
+            await UpsertAsync(agg).ConfigureAwait(false);
         }
 
         private async Task UpsertAsync(VotingSessionAggregate agg)
         {
-            var existing = await _uow.VotingSessions.GetByIdAsync(agg.Id).ConfigureAwait(false);
-            if (existing == null)
-                await _uow.VotingSessions.AddAsync(agg).ConfigureAwait(false);
-            else
-                await _uow.VotingSessions.UpdateAsync(agg).ConfigureAwait(false);
+            using var scope = _scopeFactory.CreateScope();
+            var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            await _uow.CommitAsync().ConfigureAwait(false);
+            var existing = await uow.VotingSessions.GetByIdAsync(agg.Id).ConfigureAwait(false);
+            if (existing == null)
+                await uow.VotingSessions.AddAsync(agg).ConfigureAwait(false);
+            else
+                await uow.VotingSessions.UpdateAsync(agg).ConfigureAwait(false);
+
+            await uow.CommitAsync().ConfigureAwait(false);
         }
 
         public VotingSessionAggregate? GetAggregate(uint sessionId)

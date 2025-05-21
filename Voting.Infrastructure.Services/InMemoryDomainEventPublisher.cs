@@ -4,7 +4,7 @@ using Voting.Domain.Interfaces;
 
 namespace Voting.Infrastructure.Services
 {
-    public class InMemoryDomainEventPublisher(ILogger logger) : IDomainEventPublisher
+    public class InMemoryDomainEventPublisher(ILogger<InMemoryDomainEventPublisher> logger) : IDomainEventPublisher
     {
         // храним маппинг: тип события → список обработчиков
         private readonly Dictionary<Type, List<Action<IDomainEvent>>> _handlers
