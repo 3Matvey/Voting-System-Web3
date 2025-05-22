@@ -23,7 +23,7 @@ namespace Voting.Application.Projections
         private readonly ConcurrentDictionary<uint, VotingSessionAggregate> _sessions = new();
 
         // делегаты для контрактных событий
-        private readonly EventHandler<SessionCreatedEventArgs> _onChainSessionCreated;
+        //private readonly EventHandler<SessionCreatedEventArgs> _onChainSessionCreated;
         private readonly EventHandler<CandidateAddedEventArgs> _onChainCandidateAdded;
         private readonly EventHandler<CandidateRemovedEventArgs> _onChainCandidateRemoved;
         private readonly EventHandler<VotingStartedEventArgs> _onChainVotingStarted;
@@ -40,9 +40,9 @@ namespace Voting.Application.Projections
             _publisher = publisher ?? throw new ArgumentNullException(nameof(publisher));
 
             // on-chain → domain events
-            _onChainSessionCreated = (_, e) =>
-                _publisher.Publish(new SessionCreatedDomainEvent(
-                    e.SessionId, Guid.Empty, default, default));
+            //_onChainSessionCreated = (_, e) =>
+            //    _publisher.Publish(new SessionCreatedDomainEvent(
+            //        e.SessionId, Guid.Empty, default, default));
 
             _onChainCandidateAdded = (_, e) =>
                 _publisher.Publish(new CandidateAddedDomainEvent(
@@ -79,7 +79,7 @@ namespace Voting.Application.Projections
         public Task StartAsync(CancellationToken cancellationToken)
         {
             // подписываемся на on-chain события
-            _listener.SessionCreated += _onChainSessionCreated;
+            //_listener.SessionCreated += _onChainSessionCreated;
             _listener.CandidateAdded += _onChainCandidateAdded;
             _listener.CandidateRemoved += _onChainCandidateRemoved;
             _listener.VotingStarted += _onChainVotingStarted;
@@ -103,7 +103,7 @@ namespace Voting.Application.Projections
         {
             await _listener.StopAsync().ConfigureAwait(false);
 
-            _listener.SessionCreated -= _onChainSessionCreated;
+            //_listener.SessionCreated -= _onChainSessionCreated;
             _listener.CandidateAdded -= _onChainCandidateAdded;
             _listener.CandidateRemoved -= _onChainCandidateRemoved;
             _listener.VotingStarted -= _onChainVotingStarted;

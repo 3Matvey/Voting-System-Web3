@@ -31,11 +31,11 @@ namespace Voting.Domain.Aggregates
         private readonly List<Candidate> _candidates = new();
         public ICollection<Candidate> Candidates => _candidates;
 
-        private readonly HashSet<Guid> _votedUserIds = new();
-        private readonly HashSet<Guid> _registeredUserIds = new();
+        private readonly List<Guid> _votedUserIds = [];
+        private readonly List<Guid> _registeredUserIds = [];
 
-        public IReadOnlyCollection<Guid> RegisteredUserIds => _registeredUserIds.ToList().AsReadOnly();
-        public IReadOnlyCollection<Guid> VotedUserIds => _votedUserIds.ToList().AsReadOnly();
+        public IReadOnlyCollection<Guid> RegisteredUserIds => _registeredUserIds.AsReadOnly();
+        public IReadOnlyCollection<Guid> VotedUserIds => _votedUserIds.AsReadOnly();
 
         public VotingSessionAggregate() { }
 

@@ -29,7 +29,7 @@ namespace Voting.API.Controllers
                     };
 
                     return CreatedAtRoute(
-                        routeName: nameof(GetById),
+                        //routeName: nameof(GetById),
                         routeValues: new { sessionId = r.SessionId },
                         value: body);
                 },
