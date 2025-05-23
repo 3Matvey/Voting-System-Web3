@@ -22702,12 +22702,12 @@
     "5777": {
       "events": {},
       "links": {},
-      "address": "0x25e2ED6818D90E35838Dda79C3509bE7c7690AdC",
-      "transactionHash": "0x28b1322caa349d3191fe30307da13bec91fc61a845fae260554167efe23e7f0a"
+      "address": "0x8CdaF0CD259887258Bc13a92C0a6dA92698644C0",
+      "transactionHash": "0x06ba5a226898bcb46540391fb639549d86ce662df5a2efd993ff2f43f3d5cb8c"
     }
   },
   "schemaVersion": "3.4.16",
-  "updatedAt": "2025-05-21T15:10:19.792Z",
+  "updatedAt": "2025-05-23T18:58:46.500Z",
   "networkType": "ethereum",
   "devdoc": {
     "events": {

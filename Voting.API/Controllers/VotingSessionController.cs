@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Voting.Application.DTOs.Requests;
 using Voting.Application.UseCases.Commands.VotingSession;
+using Voting.Application.UseCases.Queries.VotingSession;
 using Voting.Shared.ResultPattern;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
@@ -11,7 +12,8 @@ namespace Voting.API.Controllers
     [ApiController]
     public class VotingSessionsController(
         CreateVotingSessionUseCase create,
-        AddCandidateUseCase addCandidate
+        AddCandidateUseCase addCandidate,
+        GetVotingSessionUseCase getVotingSession
     ) : ControllerBaseWithResult
     {
         [HttpPost]
@@ -51,9 +53,11 @@ namespace Voting.API.Controllers
 
 
         [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetById(uint id)
+        public async Task<IActionResult> GetById([FromRoute] uint id)
         {
-            throw new NotImplementedException();
+            var result = await getVotingSession.Execute(id);
+
+            return result.Match(Ok, Problem);
         }
     }
 }

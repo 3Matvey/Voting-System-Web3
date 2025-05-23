@@ -170,8 +170,11 @@ namespace Voting.Application.Projections
             var existing = await uow.VotingSessions.GetByIdAsync(agg.Id).ConfigureAwait(false);
             if (existing == null)
                 await uow.VotingSessions.AddAsync(agg).ConfigureAwait(false);
-            else
+            else 
+            {
+                existing = agg; //FIXME надо подумать зачем оно
                 await uow.VotingSessions.UpdateAsync(agg).ConfigureAwait(false);
+            }
 
             await uow.CommitAsync().ConfigureAwait(false);
         }
