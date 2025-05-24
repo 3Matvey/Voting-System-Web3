@@ -8,22 +8,22 @@ namespace Voting.Application.UseCases.Commands.VotingSession
         ISmartContractAdapter contract,
         IUnitOfWork uow)
     {
-        public async Task<Result> Execute(StartVotingRequest request)
+        public async Task<Result> Execute(uint sessionId, StartVotingRequest request)
         {
-            if (request is null)
-                return Error.Validation("InvalidRequest", "Request cannot be null.");
+            if (request.DurationMinutes == 0)
+                return Error.Validation("InvalidRequest", "Voting duration cannot be null.");
 
-            var session = await uow.VotingSessions.GetByIdAsync(request.SessionId);
+            var session = await uow.VotingSessions.GetByIdAsync(sessionId);
             if (session == null)
-                return Error.NotFound("SessionNotFound", $"Session {request.SessionId} not found.");
+                return Error.NotFound("SessionNotFound", $"Session {sessionId} not found.");
             if (session.AdminUserId != request.AdminUserId)
                 return Error.AccessForbidden("Forbidden", "Only session admin can start voting.");
 
             try
             {
                 await contract.StartVotingAsync(
-                    request.SessionId,
-                    (uint)request.DurationMinutes);
+                    sessionId,
+                    request.DurationMinutes);
             }
             catch (Exception ex)
             {

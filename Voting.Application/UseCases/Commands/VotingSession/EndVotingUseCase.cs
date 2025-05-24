@@ -14,20 +14,20 @@ namespace Voting.Application.UseCases.Commands.VotingSession
         private readonly ISmartContractAdapter _contract = contract ?? throw new ArgumentNullException(nameof(contract));
         private readonly IUnitOfWork _uow = uow ?? throw new ArgumentNullException(nameof(uow));
 
-        public async Task<Result> Execute(EndVotingRequest request)
+        public async Task<Result> Execute(uint sessionId, EndVotingRequest request)
         {
             if (request is null)
                 return Error.Validation("InvalidRequest", "Request cannot be null.");
 
-            var session = await _uow.VotingSessions.GetByIdAsync(request.SessionId);
+            var session = await _uow.VotingSessions.GetByIdAsync(sessionId);
             if (session == null)
-                return Error.NotFound("SessionNotFound", $"Session {request.SessionId} not found.");
+                return Error.NotFound("SessionNotFound", $"Session {sessionId} not found.");
             if (session.AdminUserId != request.AdminUserId)
                 return Error.AccessForbidden("Forbidden", "Only session admin can end voting.");
 
             try
             {
-                await _contract.EndVotingAsync(request.SessionId);
+                await _contract.EndVotingAsync(sessionId);
             }
             catch (Exception ex)
             {

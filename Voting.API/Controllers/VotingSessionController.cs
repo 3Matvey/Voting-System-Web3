@@ -13,7 +13,9 @@ namespace Voting.API.Controllers
     public class VotingSessionsController(
         CreateVotingSessionUseCase create,
         AddCandidateUseCase addCandidate,
-        GetVotingSessionUseCase getVotingSession
+        GetVotingSessionUseCase getVotingSession,
+        StartVotingUseCase startVoting,
+        EndVotingUseCase endVoting
     ) : ControllerBaseWithResult
     {
         [HttpPost]
@@ -44,6 +46,28 @@ namespace Voting.API.Controllers
         public async Task<IActionResult> AddCandidate([FromRoute] uint sessionId, [FromBody] AddCandidateRequest request)
         {
             var result = await addCandidate.Execute(sessionId, request);
+
+            return result.Match(
+                onSuccess: Ok,
+                onFailure: Problem
+            );
+        }
+
+        [HttpPost("{sessionId:int}/start")]
+        public async Task<IActionResult> StartVoting([FromRoute] uint sessionId, [FromBody] StartVotingRequest request)
+        {
+            var result = await startVoting.Execute(sessionId, request);
+
+            return result.Match(
+                onSuccess: Ok,
+                onFailure: Problem
+            );
+        }
+
+        [HttpPost("{sessionId:int}/end")]
+        public async Task<IActionResult> EndVoting([FromRoute] uint sessionId, [FromBody] EndVotingRequest request)
+        {
+            var result = await endVoting.Execute(sessionId, request);
 
             return result.Match(
                 onSuccess: Ok,

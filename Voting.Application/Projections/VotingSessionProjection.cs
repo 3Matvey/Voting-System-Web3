@@ -110,54 +110,81 @@ namespace Voting.Application.Projections
             _listener.VoteCast -= _onChainVoteCast;
         }
 
-        private VotingSessionAggregate GetOrCreate(uint sessionId)
-            => _sessions.GetOrAdd(sessionId, _ => new VotingSessionAggregate());
+        private async Task<VotingSessionAggregate> GetOrCreateAsync(uint sessionId)
+        {
+            // если уже в кешe — возвращаем
+            if (_sessions.TryGetValue(sessionId, out var existing))
+                return existing;
+
+            // иначе открываем scope и пробуем достать из БД
+            using var scope = _scopeFactory.CreateScope();
+            var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            var fromDb = await uow.VotingSessions
+                                  .GetByIdAsync(sessionId)
+                                  .ConfigureAwait(false);
+
+            VotingSessionAggregate agg = fromDb ?? new VotingSessionAggregate();
+
+            // кладём в кеш (если два потока одновременно, второй просто получит аггрегат того, кто первый уложил)
+            _sessions.TryAdd(sessionId, agg);
+            return agg;
+        }
+
 
         private async void OnSessionCreated(SessionCreatedDomainEvent e)
         {
-            var agg = GetOrCreate(e.SessionId).Apply(e);
+            var agg = await GetOrCreateAsync(e.SessionId).ConfigureAwait(false);
+            agg.Apply(e);
             await UpsertAsync(agg).ConfigureAwait(false);
         }
 
         private async void OnCandidateAdded(CandidateAddedDomainEvent e)
         {
-            var agg = GetOrCreate(e.SessionId).Apply(e);
+            var agg = await GetOrCreateAsync(e.SessionId).ConfigureAwait(false);
+            agg.Apply(e);
             await UpsertAsync(agg).ConfigureAwait(false);
         }
 
         private async void OnCandidateRemoved(CandidateRemovedDomainEvent e)
         {
-            var agg = GetOrCreate(e.SessionId).Apply(e);
+            var agg = await GetOrCreateAsync(e.SessionId).ConfigureAwait(false);
+            agg.Apply(e);
             await UpsertAsync(agg).ConfigureAwait(false);
         }
 
         private async void OnVotingStarted(VotingStartedDomainEvent e)
         {
-            var agg = GetOrCreate(e.SessionId).Apply(e);
+            var agg = await GetOrCreateAsync(e.SessionId).ConfigureAwait(false);
+            agg.Apply(e);
             await UpsertAsync(agg).ConfigureAwait(false);
         }
 
         private async void OnVotingEnded(VotingEndedDomainEvent e)
         {
-            var agg = GetOrCreate(e.SessionId).Apply(e);
+            var agg = await GetOrCreateAsync(e.SessionId).ConfigureAwait(false);
+            agg.Apply(e);
             await UpsertAsync(agg).ConfigureAwait(false);
         }
 
         private async void OnVoteCast(VoteCastDomainEvent e)
         {
-            var agg = GetOrCreate(e.SessionId).Apply(e);
+            var agg = await GetOrCreateAsync(e.SessionId).ConfigureAwait(false);
+            agg.Apply(e);
             await UpsertAsync(agg).ConfigureAwait(false);
         }
 
         private async void OnVoterRegistered(VoterRegisteredDomainEvent e)
         {
-            var agg = GetOrCreate(e.SessionId).Apply(e);
+            var agg = await GetOrCreateAsync(e.SessionId).ConfigureAwait(false);
+            agg.Apply(e);
             await UpsertAsync(agg).ConfigureAwait(false);
         }
 
         private async void OnCandidateDescriptionUpdated(CandidateDescriptionUpdatedDomainEvent e)
         {
-            var agg = GetOrCreate(e.SessionId).Apply(e);
+            var agg = await GetOrCreateAsync(e.SessionId).ConfigureAwait(false);
+            agg.Apply(e);
             await UpsertAsync(agg).ConfigureAwait(false);
         }
 

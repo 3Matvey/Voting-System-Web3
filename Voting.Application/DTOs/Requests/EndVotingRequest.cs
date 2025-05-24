@@ -3,7 +3,5 @@
     public class EndVotingRequest
     {
         public Guid AdminUserId { get; set; }
-        public uint SessionId { get; set; }
     }
-
 }

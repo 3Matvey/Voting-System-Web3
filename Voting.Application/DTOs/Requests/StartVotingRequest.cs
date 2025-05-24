@@ -4,7 +4,6 @@
     public class StartVotingRequest
     {
         public Guid AdminUserId { get; set; }
-        public uint SessionId { get; set; }
-        public int DurationMinutes { get; set; }
+        public uint DurationMinutes { get; set; }
     }
 }
