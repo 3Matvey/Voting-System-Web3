@@ -14,5 +14,8 @@ namespace Voting.Domain.Interfaces.Repositories
         Task<User?> GetByBlockchainAddressAsync(string address,
             CancellationToken cancellationToken = default,
             params Expression<Func<User, object>>[] includesProperties);
+
+        Task<string> GetBlockchainAddressAsync(Guid userId, 
+            CancellationToken ct = default);
     }
 }

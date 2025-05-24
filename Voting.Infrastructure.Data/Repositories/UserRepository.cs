@@ -32,5 +32,14 @@ namespace Voting.Infrastructure.Data.Repositories
             var query = QueryWithIncludes(includesProperties);
             return await query.FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
         }
+
+        public Task<string> GetBlockchainAddressAsync(Guid userId, CancellationToken ct = default)
+        {
+            return _context.Users
+                .AsNoTracking()
+                .Where(u => u.Id == userId)
+                .Select(u => u.BlockchainAddress)
+                .SingleAsync(ct);
+        }
     }
 }

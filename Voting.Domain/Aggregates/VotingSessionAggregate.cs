@@ -58,6 +58,8 @@ namespace Voting.Domain.Aggregates
 
         public VotingSessionAggregate Apply(CandidateAddedDomainEvent e)
         {
+            Id = e.SessionId;
+
             if (_candidates.All(c => c.Id != e.CandidateId))
                 _candidates.Add(new Candidate(e.CandidateId, e.Name, 0));
 
@@ -66,12 +68,17 @@ namespace Voting.Domain.Aggregates
 
         public VotingSessionAggregate Apply(CandidateRemovedDomainEvent e)
         {
+            Id = e.SessionId;
+
             _candidates.RemoveAll(c => c.Id == e.CandidateId);
+
             return this;
         }
 
         public VotingSessionAggregate Apply(VotingStartedDomainEvent e)
         {
+            Id = e.SessionId;
+
             VotingActive = true;
             StartTimeUtc = e.StartTimeUtc;
             EndTimeUtc = e.EndTimeUtc;
@@ -80,6 +87,8 @@ namespace Voting.Domain.Aggregates
 
         public VotingSessionAggregate Apply(VotingEndedDomainEvent e)
         {
+            Id = e.SessionId;
+
             VotingActive = false;
             EndTimeUtc = e.EndTimeUtc;
             return this;
@@ -87,10 +96,10 @@ namespace Voting.Domain.Aggregates
 
         public VotingSessionAggregate Apply(VoteCastDomainEvent e)
         {
+            Id = e.SessionId;
             // ищем кандидата и инкрементим
             var candidate = _candidates.SingleOrDefault(c => c.Id == e.CandidateId);
-            if (candidate != null)
-                candidate.IncrementVote();
+            candidate?.IncrementVote();
 
             _votedUserIds.Add(e.VoterId);
             return this;
@@ -98,15 +107,19 @@ namespace Voting.Domain.Aggregates
 
         public VotingSessionAggregate Apply(VoterRegisteredDomainEvent e)
         {
+            Id = e.SessionId;
+
             _registeredUserIds.Add(e.UserId);
             return this;
         }
 
         public VotingSessionAggregate Apply(CandidateDescriptionUpdatedDomainEvent e)
         {
-            var candidate = _candidates.SingleOrDefault(c => c.Id == e.CandidateId);
-            if (candidate is null)
-                throw new DomainException($"Candidate {e.CandidateId} not found");
+            Id = e.SessionId;
+
+            var candidate = _candidates.SingleOrDefault(c => c.Id == e.CandidateId) 
+                ?? throw new DomainException($"Candidate {e.CandidateId} not found");
+
             if (VotingActive)
                 throw new DomainException("Cannot update description during active voting");
 

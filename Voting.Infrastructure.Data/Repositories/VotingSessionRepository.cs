@@ -57,5 +57,13 @@ namespace Voting.Infrastructure.Data.Repositories
             await _context.SaveChangesAsync(cancellationToken);
         }
 
+        public Task<Guid> GetAdminUserIdAsync(uint sessionId, CancellationToken ct = default)
+        {
+            return _context.VotingSessions
+                .AsNoTracking()
+                .Where(s => s.Id == sessionId)
+                .Select(s => s.AdminUserId)
+                .SingleAsync(ct);
+        }
     }
 }

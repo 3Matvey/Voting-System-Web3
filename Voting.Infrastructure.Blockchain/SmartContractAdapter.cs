@@ -1,12 +1,14 @@
-﻿using Microsoft.Extensions.Logging;
-using Nethereum.Web3;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Nethereum.Contracts.ContractHandlers;
 using Nethereum.RPC.Eth.DTOs;
+using Nethereum.Web3;
 using Voting.Application.Interfaces;
+using Voting.Domain.Aggregates;
+using Voting.Domain.Entities;
+using Voting.Domain.Interfaces;
 using Voting.Infrastructure.Blockchain.ContractFunctions;
 using Voting.Infrastructure.Blockchain.EventDTOs;
-using Nethereum.Contracts.ContractHandlers;
-using Voting.Domain.Entities;
-using Voting.Domain.Aggregates;
 
 namespace Voting.Infrastructure.Blockchain
 {
@@ -16,24 +18,42 @@ namespace Voting.Infrastructure.Blockchain
         private readonly ILogger<SmartContractAdapter>? _logger;
         private readonly string _defaultSenderAddress;
         private readonly Dictionary<uint, string> _sessionAdmins = [];
+        private readonly IServiceScopeFactory _scopeFactory;
 
         public SmartContractAdapter(
             string rpcUrl,
             string contractAddress,
             string defaultSenderAddress,
+            IServiceScopeFactory scopeFactory,
             ILogger<SmartContractAdapter>? logger = null)
         {
             var web3 = new Web3(rpcUrl);
             _handler = web3.Eth.GetContractHandler(contractAddress);
             _defaultSenderAddress = defaultSenderAddress;
             _logger = logger;
+            _scopeFactory = scopeFactory;
         }
 
-        private string GetSessionAdmin(uint sessionId)
+        private async ValueTask<string> GetSessionAdminAsync(uint sessionId)
         {
-            if (!_sessionAdmins.TryGetValue(sessionId, out var admin))
-                throw new InvalidOperationException(
-                    $"Session {sessionId} has no known admin");
+            if (_sessionAdmins.TryGetValue(sessionId, out var admin))
+                return admin;
+
+            using var scope = _scopeFactory.CreateScope();
+            var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            // 1) берём AdminUserId без трекинга
+            var adminUserId = await uow.VotingSessions
+                                       .GetAdminUserIdAsync(sessionId)
+                                       .ConfigureAwait(false);
+            // 2) берём адрес без трекинга
+            admin = await uow.Users
+                             .GetBlockchainAddressAsync(adminUserId)
+                             .ConfigureAwait(false);
+
+
+            _sessionAdmins[sessionId] = admin;
+            _logger?.LogDebug("Cached session {SessionId} → admin {Admin}", sessionId, admin);
             return admin;
         }
         public async Task<uint> CreateSessionAsync(string sessionAdmin, CancellationToken ct = default)
@@ -63,10 +83,11 @@ namespace Voting.Infrastructure.Blockchain
 
         public async Task<string> AddCandidateAsync(uint sessionId, string candidateName, CancellationToken ct = default)
         {
+            var adminAddress = await GetSessionAdminAsync(sessionId);
             var fn = new AddCandidateFunction { 
                 SessionId = sessionId, 
                 Name = candidateName,
-                FromAddress = GetSessionAdmin(sessionId)
+                FromAddress = adminAddress
             };
             var receipt = await _handler
                 .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)
@@ -76,11 +97,12 @@ namespace Voting.Infrastructure.Blockchain
 
         public async Task<string> RemoveCandidateAsync(uint sessionId, uint candidateId, CancellationToken ct = default)
         {
+            var adminAddress = await GetSessionAdminAsync(sessionId);
             var fn = new RemoveCandidateFunction 
             { 
                 SessionId = sessionId,
                 CandidateId = candidateId,
-                FromAddress = GetSessionAdmin(sessionId)
+                FromAddress = adminAddress
             };
             var receipt = await _handler
                 .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)
@@ -90,11 +112,12 @@ namespace Voting.Infrastructure.Blockchain
 
         public async Task<string> StartVotingAsync(uint sessionId, uint durationMinutes, CancellationToken ct = default)
         {
+            var adminAddress = await GetSessionAdminAsync(sessionId);
             var fn = new StartVotingFunction 
             { 
                 SessionId = sessionId,
                 DurationMinutes = durationMinutes,
-                FromAddress = GetSessionAdmin(sessionId)
+                FromAddress = adminAddress
             };
             var receipt = await _handler
                 .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)
@@ -118,10 +141,11 @@ namespace Voting.Infrastructure.Blockchain
 
         public async Task<string> EndVotingAsync(uint sessionId, CancellationToken ct = default)
         {
+            var adminAddress = await GetSessionAdminAsync(sessionId);
             var fn = new EndVotingFunction 
             { 
                 SessionId = sessionId,
-                FromAddress = GetSessionAdmin(sessionId),
+                FromAddress = adminAddress
             };
             var receipt = await _handler
                 .SendRequestAndWaitForReceiptAsync(fn, cancellationToken: ct)

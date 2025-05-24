@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Voting.Application.Interfaces;
 
@@ -41,15 +42,18 @@ namespace Voting.Infrastructure.Blockchain
             services.AddSingleton<ISmartContractAdapter>(sp =>
             {
                 var opts = sp.GetRequiredService<IOptions<BlockchainOptions>>().Value;
-                var listener = sp.GetRequiredService<IContractEventListener>();
-                var logger = sp.GetService<Microsoft.Extensions.Logging.ILogger<SmartContractAdapter>>();
+                var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+                var logger = sp.GetService<ILogger<SmartContractAdapter>>();
+
                 return new SmartContractAdapter(
                     rpcUrl: opts.RpcUrl,
-                    defaultSenderAddress: opts.DefaultSenderAddress,
                     contractAddress: opts.ContractAddress,
+                    defaultSenderAddress: opts.DefaultSenderAddress,
+                    scopeFactory: scopeFactory,
                     logger: logger
                 );
             });
+
 
             return services;
         }

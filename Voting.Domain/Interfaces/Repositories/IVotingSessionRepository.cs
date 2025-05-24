@@ -8,8 +8,11 @@ namespace Voting.Domain.Interfaces.Repositories
     /// </summary>
     public interface IVotingSessionRepository : IRepository<VotingSessionAggregate>
     {
-        Task<VotingSessionAggregate?> GetByIdAsync(uint id, 
-            CancellationToken cancellationToken = default, 
+        Task<VotingSessionAggregate?> GetByIdAsync(uint id,
+            CancellationToken cancellationToken = default,
             params Expression<Func<VotingSessionAggregate, object>>[] includesProperties);
+
+        Task<Guid> GetAdminUserIdAsync(uint sessionId,
+            CancellationToken ct = default);
     }
 }
