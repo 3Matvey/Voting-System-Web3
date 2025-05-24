@@ -20,41 +20,39 @@ namespace Voting.Infrastructure.Data.Repositories
             VotingSessionAggregate detached,
             CancellationToken cancellationToken = default)
         {
-            // 1. Загрузим трекнутую сессию вместе с кандидатами
             var tracked = await QueryWithIncludes(s => s.Candidates)
                 .FirstOrDefaultAsync(s => s.Id == detached.Id, cancellationToken)
                 ?? throw new InvalidOperationException($"VotingSession {detached.Id} not found");
 
-            // 2. Синхронизируем скалярные свойства агрегата
+            // 1. Синхронизируем скалярные свойства агрегата
             _context.Entry(tracked).CurrentValues.SetValues(detached);
 
-            // 3. Синхронизируем коллекцию Candidates
-
-            // 3.1. Удаляем кандидатов, которых больше нет в incoming
+            // 2. Синхронизируем коллекцию кандидатов
+            // 2.1. Удаляем кандидатов, которых больше нет в incoming
             var toRemove = tracked.Candidates
                 .Where(c => detached.Candidates.All(dc => dc.Id != c.Id))
                 .ToList();
+
             foreach (var candidate in toRemove)
                 tracked.Candidates.Remove(candidate);
 
-            // 3.2. Добавляем новых кандидатов из incoming
-            var toAdd = detached.Candidates
-                .Where(dc => tracked.Candidates.All(c => c.Id != dc.Id))
-                .ToList();
-            foreach (var candidate in toAdd)
-                tracked.Candidates.Add(candidate);
-
-            // 3.3. Обновляем изменившихся кандидатов
-            foreach (var existing in tracked.Candidates)
+            // 2.2. Обновляем или добавляем новых кандидатов
+            foreach (var incoming in detached.Candidates)
             {
-                var incoming = detached.Candidates
-                    .FirstOrDefault(dc => dc.Id == existing.Id);
-                if (incoming != null)
+                var existing = tracked.Candidates
+                    .FirstOrDefault(c => c.Id == incoming.Id);
+
+                if (existing != null)
+                {
+                    // Обновляем сущность
                     _context.Entry(existing).CurrentValues.SetValues(incoming);
+                }
+                else
+                {
+                    // Добавляем нового кандидата
+                    tracked.Candidates.Add(incoming);
+                }
             }
-
-            // Сохранять будем снаружи (SaveChangesAsync)
         }
-
     }
 }

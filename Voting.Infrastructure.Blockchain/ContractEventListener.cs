@@ -4,6 +4,7 @@ using Nethereum.RPC.Reactive.Eth.Subscriptions;
 using Voting.Infrastructure.Blockchain.EventDTOs;
 using Voting.Application.Events;
 using Voting.Application.Interfaces;
+using Nethereum.JsonRpc.Client;
 
 namespace Voting.Infrastructure.Blockchain
 {
@@ -33,6 +34,7 @@ namespace Voting.Infrastructure.Blockchain
         {
             if (_started) return;
             _started = true;
+            StreamingWebSocketClient.ForceCompleteReadTotalMilliseconds = (int)TimeSpan.FromMinutes(30).TotalMilliseconds;
             await _client.StartAsync();
             logger?.LogInformation("WebSocket connection started to {Url}", wsUrl);
             await InitializeSubscriptionsAsync();
