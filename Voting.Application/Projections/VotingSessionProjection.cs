@@ -19,6 +19,8 @@ namespace Voting.Application.Projections
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IDomainEventPublisher _publisher;
 
+        // для каждой сессии 
+        private static readonly ConcurrentDictionary<uint, SemaphoreSlim> _sessionLocks = new();
         // кеш агрегатов
         private readonly ConcurrentDictionary<uint, VotingSessionAggregate> _sessions = new();
 
@@ -164,19 +166,26 @@ namespace Voting.Application.Projections
 
         private async Task UpsertAsync(VotingSessionAggregate agg)
         {
-            using var scope = _scopeFactory.CreateScope();
-            var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var sem = _sessionLocks.GetOrAdd(agg.Id, new SemaphoreSlim(1, 1));
 
-            var existing = await uow.VotingSessions.GetByIdAsync(agg.Id).ConfigureAwait(false);
-            if (existing == null)
-                await uow.VotingSessions.AddAsync(agg).ConfigureAwait(false);
-            else 
+            await sem.WaitAsync();
+            try
             {
-                existing = agg; //FIXME надо подумать зачем оно
-                await uow.VotingSessions.UpdateAsync(agg).ConfigureAwait(false);
-            }
+                using var scope = _scopeFactory.CreateScope();
+                var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            await uow.CommitAsync().ConfigureAwait(false);
+                var existing = await uow.VotingSessions.GetByIdAsync(agg.Id).ConfigureAwait(false);
+                if (existing == null)
+                    await uow.VotingSessions.AddAsync(agg).ConfigureAwait(false);
+                else
+                    await uow.VotingSessions.UpdateAsync(agg).ConfigureAwait(false);
+
+                await uow.CommitAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                sem.Release();
+            }
         }
 
         public VotingSessionAggregate? GetAggregate(uint sessionId)

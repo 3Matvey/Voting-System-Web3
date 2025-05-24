@@ -24,35 +24,38 @@ namespace Voting.Infrastructure.Data.Repositories
                 .FirstOrDefaultAsync(s => s.Id == detached.Id, cancellationToken)
                 ?? throw new InvalidOperationException($"VotingSession {detached.Id} not found");
 
-            // 1. Синхронизируем скалярные свойства агрегата
+            // 1) Сохраняем скаляры FIXME разобраться как все работает
             _context.Entry(tracked).CurrentValues.SetValues(detached);
 
-            // 2. Синхронизируем коллекцию кандидатов
-            // 2.1. Удаляем кандидатов, которых больше нет в incoming
+            // 2) Удаляем “лишних” кандидатов
             var toRemove = tracked.Candidates
                 .Where(c => detached.Candidates.All(dc => dc.Id != c.Id))
                 .ToList();
+            foreach (var old in toRemove)
+                _context.Entry(old).State = EntityState.Deleted;
 
-            foreach (var candidate in toRemove)
-                tracked.Candidates.Remove(candidate);
+            // Нужен “промежуточный” SaveChanges, чтобы DELETE отработал в базе ДО INSERT’ов
+            await _context.SaveChangesAsync(cancellationToken);
 
-            // 2.2. Обновляем или добавляем новых кандидатов
+            // 3) Теперь обновляем и добавляем
             foreach (var incoming in detached.Candidates)
             {
-                var existing = tracked.Candidates
-                    .FirstOrDefault(c => c.Id == incoming.Id);
-
+                var existing = tracked.Candidates.FirstOrDefault(c => c.Id == incoming.Id);
                 if (existing != null)
                 {
-                    // Обновляем сущность
                     _context.Entry(existing).CurrentValues.SetValues(incoming);
+                    // (по умолчанию уже Modified)
                 }
                 else
                 {
-                    // Добавляем нового кандидата
                     tracked.Candidates.Add(incoming);
+                    // (по умолчанию Added)
                 }
             }
+
+            // 4) Финальный Save
+            await _context.SaveChangesAsync(cancellationToken);
         }
+
     }
 }

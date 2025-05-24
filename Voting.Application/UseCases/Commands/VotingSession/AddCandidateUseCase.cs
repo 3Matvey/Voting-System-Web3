@@ -2,6 +2,7 @@
 using Voting.Application.DTOs.Responses;
 using Voting.Application.Events;
 using Voting.Application.Interfaces;
+using Voting.Domain.Events;
 using Voting.Domain.Interfaces;
 
 namespace Voting.Application.UseCases.Commands.VotingSession
@@ -9,7 +10,8 @@ namespace Voting.Application.UseCases.Commands.VotingSession
     public class AddCandidateUseCase(
         IUnitOfWork uow,
         ISmartContractAdapter contract,
-        IContractEventListener listener)
+        IContractEventListener listener,
+        IDomainEventPublisher publisher)
     {
         private readonly TimeSpan _timeout = TimeSpan.FromSeconds(30);
         //[тут атрибут] FIXME 
@@ -62,6 +64,9 @@ namespace Voting.Application.UseCases.Commands.VotingSession
             {
                 listener.CandidateAdded -= Handler;
             }
+
+            if (!string.IsNullOrEmpty(request.Description))
+                publisher.Publish(new CandidateDescriptionUpdatedDomainEvent(sessionId, candidateId, request.Description));
 
             return Result<AddCandidateResponse>.Success(new AddCandidateResponse
             {
