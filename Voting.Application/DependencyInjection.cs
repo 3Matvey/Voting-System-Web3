@@ -30,9 +30,11 @@ namespace Voting.Application
             services.AddScoped<CreateVotingSessionUseCase>();
             services.AddScoped<EndVotingUseCase>();
             services.AddScoped<StartVotingUseCase>();
+            services.AddScoped<CastVoteUseCase>();
 
             // VotingSession queries
             services.AddScoped<GetVotingSessionUseCase>();
+            services.AddScoped<GetVotingResultUseCase>();
 
             return services;
         }

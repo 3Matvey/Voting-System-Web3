@@ -15,7 +15,8 @@ namespace Voting.API.Controllers
         AddCandidateUseCase addCandidate,
         GetVotingSessionUseCase getVotingSession,
         StartVotingUseCase startVoting,
-        EndVotingUseCase endVoting
+        EndVotingUseCase endVoting,
+        CastVoteUseCase castVote
     ) : ControllerBaseWithResult
     {
         [HttpPost]
@@ -68,6 +69,17 @@ namespace Voting.API.Controllers
         public async Task<IActionResult> EndVoting([FromRoute] uint sessionId, [FromBody] EndVotingRequest request)
         {
             var result = await endVoting.Execute(sessionId, request);
+
+            return result.Match(
+                onSuccess: Ok,
+                onFailure: Problem
+            );
+        }
+
+        [HttpPost("{sessionId:int}/vote")]
+        public async Task<IActionResult> CastVote([FromRoute] uint sessionId, [FromBody] CastVoteRequest request)
+        {
+            var result = await castVote.Execute(sessionId, request);
 
             return result.Match(
                 onSuccess: Ok,
