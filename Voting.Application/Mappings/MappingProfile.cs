@@ -25,12 +25,10 @@ namespace Voting.Application.Mappings
                 .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description))
                 .ForMember(dest => dest.VoteCount, opt => opt.MapFrom(src => src.VoteCount));
 
-            //    // Маппинг кандидата в DTO результатов кандидата
-            //    CreateMap<Candidate, CandidateResultDto>()
-            //        .ForMember(dest => dest.CandidateId, opt => opt.MapFrom(src => src.Id))
-            //        .ForMember(dest => dest.CandidateName, opt => opt.MapFrom(src => src.Name))
-            //        .ForMember(dest => dest.VoteCount, opt => opt.MapFrom(src => src.VoteCount));
-
+            CreateMap<Candidate, CandidateResultDto>()
+                .ForMember(dest => dest.CandidateId, opt => opt.MapFrom(src => src.Id))
+                .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Name))
+                .ForMember(dest => dest.VoteCount, opt => opt.MapFrom(src => src.VoteCount));
             //    // Маппинг VotingSession в VotingResultsDto 
             //    CreateMap<VotingSessionAggregate, VotingResultsDto>()
             //        .ForMember(dest => dest.SessionId, opt => opt.MapFrom(src => src.SessionId))

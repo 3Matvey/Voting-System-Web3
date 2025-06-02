@@ -5,18 +5,17 @@ using Voting.Domain.Interfaces;
 
 namespace Voting.Application.UseCases.Queries.VotingSession
 {
+    //FIXME постоянные запросы к блокчейну неоптимальны, желательно единоразово сохранять в БД
     public class GetVotingResultUseCase(IUnitOfWork uow, ISmartContractAdapter contractAdapter, IMapper mapper)
     {
         public async Task<Result<CandidateResultDto[]>> Execute(uint sessionId)
         {
-            // Получаем сессию из БД для проверки её существования
             var session = await uow.VotingSessions.GetByIdAsync(sessionId);
             if (session is null)
             {
                 return Error.NotFound("VotingSession.NotFound", "Сессия голосования не найдена");
             }
 
-            // Получаем статус голосования из смарт-контракта
             var (isActive, _, _) = await contractAdapter.GetVotingStatusAsync(sessionId);
             if (isActive)
             {
@@ -24,10 +23,8 @@ namespace Voting.Application.UseCases.Queries.VotingSession
                     "Невозможно получить результаты - голосование всё ещё активно");
             }
 
-            // Получаем результаты из смарт-контракта
             var candidates = await contractAdapter.GetCandidatesAsync(sessionId);
 
-            // Преобразуем в DTO
             var results = mapper.Map<CandidateResultDto[]>(candidates);
 
             return Result<CandidateResultDto[]>.Success(results);

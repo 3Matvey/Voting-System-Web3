@@ -16,7 +16,9 @@ namespace Voting.API.Controllers
         GetVotingSessionUseCase getVotingSession,
         StartVotingUseCase startVoting,
         EndVotingUseCase endVoting,
-        CastVoteUseCase castVote
+        CastVoteUseCase castVote,
+        GetVotingResultUseCase getVotingResult,
+        DeleteCandidateUseCase deleteCandidate
     ) : ControllerBaseWithResult
     {
         [HttpPost]
@@ -92,6 +94,23 @@ namespace Voting.API.Controllers
         public async Task<IActionResult> GetById([FromRoute] uint id)
         {
             var result = await getVotingSession.Execute(id);
+
+            return result.Match(Ok, Problem);
+        }
+
+        [HttpGet("{id:int}/results")]
+        public async Task<IActionResult> GetVotingResults([FromRoute]uint id)
+        {
+            var result = await getVotingResult.Execute(id);
+
+            return result.Match(Ok, Problem);
+        }
+
+
+        [HttpDelete("{id:int}/candidate")]
+        public async Task<IActionResult> DeleteCandidate([FromRoute] uint id, DeleteCandidateRequest request)
+        {
+            var result = await deleteCandidate.Execute(id, request);
 
             return result.Match(Ok, Problem);
         }

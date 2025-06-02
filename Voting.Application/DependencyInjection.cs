@@ -2,6 +2,7 @@
 using Voting.Application.Mappings;
 using Voting.Application.Projections;
 using Voting.Application.UseCases.Commands.Auth;
+using Voting.Application.UseCases.Commands.User;
 using Voting.Application.UseCases.Commands.VotingSession;
 using Voting.Application.UseCases.Queries.VotingSession;
 
@@ -24,6 +25,8 @@ namespace Voting.Application
             // Auth use cases
             services.AddScoped<RegisterUseCase>();
             services.AddScoped<LoginUseCase>();
+            services.AddTransient<VerifyEmailUseCase>();
+            services.AddTransient<VerifyPassportUseCase>();
 
             // VotingSession commands
             services.AddScoped<AddCandidateUseCase>();
@@ -31,6 +34,7 @@ namespace Voting.Application
             services.AddScoped<EndVotingUseCase>();
             services.AddScoped<StartVotingUseCase>();
             services.AddScoped<CastVoteUseCase>();
+            services.AddScoped<DeleteCandidateUseCase>();
 
             // VotingSession queries
             services.AddScoped<GetVotingSessionUseCase>();
