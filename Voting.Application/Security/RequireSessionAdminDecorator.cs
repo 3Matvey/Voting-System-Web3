@@ -1,11 +1,6 @@
-﻿using System;
-using System.Linq;
-using System.Reflection;
-using System.Threading.Tasks;
+﻿using System.Reflection;
 using Voting.Application.Interfaces;
-using Voting.Domain.Exceptions;
 using Voting.Domain.Interfaces;
-using Voting.Shared.ResultPattern;
 
 namespace Voting.Application.Security
 {

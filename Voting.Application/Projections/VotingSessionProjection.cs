@@ -1,11 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System;
 using System.Collections.Concurrent;
-using System.Threading;
 using System.Threading.Channels;
-using System.Threading.Tasks;
-using Voting.Application.Events;
 using Voting.Application.Interfaces;
 using Voting.Domain.Aggregates;
 using Voting.Domain.Events;

@@ -1,13 +1,8 @@
 ﻿// Voting.Application/UseCases/Commands/Auth/RegisterUseCase.cs
-using System;
 using System.ComponentModel.DataAnnotations;
-using System.Threading;
-using System.Threading.Tasks;
 using Voting.Application.DTOs.Requests;
 using Voting.Application.DTOs.Responses;
 using Voting.Application.Interfaces;
-using Voting.Domain.Aggregates;
-using Voting.Domain.Common;
 using Voting.Domain.Entities.ValueObjects;
 using Voting.Domain.Events;
 using Voting.Domain.Interfaces;
@@ -50,7 +45,7 @@ namespace Voting.Application.UseCases.Commands.Auth
             var (hash, salt) = _hasher.Hash(request.Password);
 
             // Создаём аггрегат
-            var user = new User(
+            var user = new Domain.Aggregates.User(
                 Guid.NewGuid(),
                 request.Email,
                 request.BlockchainAddress,

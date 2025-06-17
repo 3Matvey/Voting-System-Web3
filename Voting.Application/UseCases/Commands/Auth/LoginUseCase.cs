@@ -1,7 +1,5 @@
 ﻿// Voting.Application/UseCases/Commands/Auth/LoginUseCase.cs
-using System;
 using System.ComponentModel.DataAnnotations;
-using System.Threading.Tasks;
 using Voting.Application.DTOs.Requests;
 using Voting.Application.DTOs.Responses;
 using Voting.Application.Interfaces;

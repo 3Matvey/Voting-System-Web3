@@ -1,0 +1,110 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="Voting.Domain.Aggregates.User" Collapsed="true">
+    <Position X="1.5" Y="2.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EACCAAAAACIEAAAAEAAABAAAAAAAAAAAAAAAgBAAAAA=</HashCode>
+      <FileName>Aggregates\User.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Property Name="Role" />
+      <Property Name="VerificationLevel" />
+    </ShowAsAssociation>
+  </Class>
+  <Class Name="Voting.Domain.Aggregates.VotingSessionAggregate" Collapsed="true">
+    <Position X="3.25" Y="2.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAASCAAAAJAQAIAIAABAAgCAQACAIAAAAAAAACACACA=</HashCode>
+      <FileName>Aggregates\VotingSessionAggregate.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Property Name="RequiredVerificationLevel" />
+    </ShowAsAssociation>
+    <ShowAsCollectionAssociation>
+      <Field Name="_candidates" />
+      <Property Name="Candidates" />
+    </ShowAsCollectionAssociation>
+  </Class>
+  <Class Name="Voting.Domain.Common.AggregateRoot" Collapsed="true">
+    <Position X="2.25" Y="0.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAgAAAAAAAAAAAAAAAAAAAAAAAEEAAAAAAACAAA=</HashCode>
+      <FileName>Common\AggregateRoot.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Voting.Domain.Entities.Candidate" Collapsed="true">
+    <Position X="5" Y="1.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAACAAAAAAAgAAAAAAAAAAQgAAAAAAAEAAAAAAAAAAA=</HashCode>
+      <FileName>Entities\Candidate.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Interface Name="Voting.Domain.Common.IDomainEvent" Collapsed="true">
+    <Position X="7.25" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Common\IDomainEvent.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Interface Name="Voting.Domain.Interfaces.Repositories.IRepository&lt;T&gt;" Collapsed="true">
+    <Position X="10.75" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAQAAAAAAAAAEAAAAAIAgAAAAAAAAAAIE=</HashCode>
+      <FileName>Interfaces\Repositories\IRepository.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Interface Name="Voting.Domain.Interfaces.Repositories.IUserRepository" Collapsed="true">
+    <Position X="11.75" Y="3.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAACAAAAAAAAAIAAIAAAAAAAAAAAAAAAAIAA=</HashCode>
+      <FileName>Interfaces\Repositories\IUserRepository.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Interface Name="Voting.Domain.Interfaces.Repositories.IVotingSessionRepository" Collapsed="true">
+    <Position X="9.5" Y="3.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAIAA=</HashCode>
+      <FileName>Interfaces\Repositories\IVotingSessionRepository.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Interface Name="Voting.Domain.Interfaces.IDomainEventPublisher" Collapsed="true">
+    <Position X="7.25" Y="2.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAEAAAAAAAAACAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Interfaces\IDomainEventPublisher.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Interface Name="Voting.Domain.Interfaces.IUnitOfWork" Collapsed="true">
+    <Position X="9.5" Y="5.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACA=</HashCode>
+      <FileName>Interfaces\IUnitOfWork.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Property Name="Users" />
+      <Property Name="VotingSessions" />
+    </ShowAsAssociation>
+  </Interface>
+  <Enum Name="Voting.Domain.Entities.ValueObjects.RegistrationMode" Collapsed="true">
+    <Position X="1.75" Y="5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAgAAA=</HashCode>
+      <FileName>Entities\ValueObjects\RegistrationMode.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Enum Name="Voting.Domain.Entities.ValueObjects.Role" Collapsed="true">
+    <Position X="3.5" Y="5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAEAQAAAAAACAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Entities\ValueObjects\Role.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Enum Name="Voting.Domain.Entities.ValueObjects.VerificationLevel" Collapsed="true">
+    <Position X="1.75" Y="5.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAACAAAAAAABAAQAAAAAAAAAAAAAAAAAEEAAA=</HashCode>
+      <FileName>Entities\ValueObjects\VerificationLevel.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>

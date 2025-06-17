@@ -1,6 +1,4 @@
 ﻿// Voting.Application/Interfaces/IJwtTokenService.cs
-using System;
-using System.Collections.Generic;
 using System.Security.Claims;
 
 namespace Voting.Application.Interfaces

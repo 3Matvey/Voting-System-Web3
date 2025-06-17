@@ -1,10 +1,4 @@
-﻿// Voting.Application.UseCases.Commands.VotingSession/SelfRegisterUserUseCase.cs
-using System;
-using System.Threading.Tasks;
-using Voting.Application.Interfaces;
-using Voting.Domain.Common;
-using Voting.Domain.Entities;
-using Voting.Domain.Entities.ValueObjects;
+﻿using Voting.Domain.Entities.ValueObjects;
 using Voting.Domain.Exceptions;
 using Voting.Domain.Interfaces;
 
@@ -55,7 +49,7 @@ namespace Voting.Application.UseCases.Commands.VotingSession
                 return Error.Validation("RegistrationError", ex.Message);
             }
 
-            await uow.CompleteAsync();
+            await uow.CommitAsync();
             return Result.Success();
         }
     }

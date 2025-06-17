@@ -4,7 +4,6 @@ using Nethereum.RPC.Reactive.Eth.Subscriptions;
 using Voting.Infrastructure.Blockchain.EventDTOs;
 using Voting.Application.Events;
 using Voting.Application.Interfaces;
-using Nethereum.JsonRpc.Client;
 
 namespace Voting.Infrastructure.Blockchain
 {
